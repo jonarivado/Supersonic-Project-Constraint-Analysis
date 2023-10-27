@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import ambiance as amb
 import math
+import pandas as pd
 
 # Aircraft variables & estimates in SI units
 W = 25  # weight in kg
@@ -62,3 +63,10 @@ TSL_WTO_3 = (beta * n / alpha) * (2*np.sqrt(k*(CD0 + CDR)) + k2 + (1 / V) * h_cl
 WTO_S_6 = (q / beta) * (np.sqrt((CD0 + CDR)/k))
 # Thrust loading
 TSL_WTO_6 = (beta / alpha) * (2*np.sqrt(k*(CD0 + CDR)) + k2 + np.sin(theta))
+
+#write each T/W and W/S to a dataframe and print it
+data = {'Case': ['Constant speed cruise at constant altitude', 'Constant speed climb', 'Constant altitude, speed turn', 'Service Ceiling', 'Constant altitude, constant acceleration', 'Climb angle'],
+        'T/W': [TSL_WTO_1, TSL_WTO_2, TSL_WTO_3, TSL_WTO_2, TSL_WTO_2, TSL_WTO_6],
+        'W/S': [WTO_S_1, WTO_S_2, WTO_S_3, WTO_S_2, WTO_S_2, WTO_S_6]}
+df = pd.DataFrame(data)
+print(df)
