@@ -13,10 +13,11 @@ AR = b ** 2 / S  # aspect ratio
 e = 0.8  # oswald efficiency factor
 V = 100  # cruise speed in m/s
 V_stall = 10  # stall speed in m/s
+V_takeoff = 1.2 * V_stall  # take-off speed in m/s
 rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
 mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
 k = 1 / (math.pi * e * AR)  # induced drag constant, k1
-k2 = 0  # coefficient in lift-drag polar # TODO can be set to zero?
+k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
 CD0 = 0.005  # zero lift drag coefficient
 CL = 1.2  # lift coefficient
 CD = CD0 + k * CL ** 2  # drag coefficient
@@ -26,49 +27,76 @@ q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
 ROC = 10  # rate of climb in m/s
 TR = 100  # turn radius in m
 n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
-dh_dt = 500  # TODO correct implementation / value of climb_rate
-# climb_rate = (V * (T-D)) / (W * g0)  # climbing distance in m # TODO needs to be calculated?
-Vc = 1  # # TODO correct value of climb velocity
-theta = np.arctan(Vc / V)  # climb angle
-dv_dt = 0  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
+dv_dt = 10  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
 
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
 
+# if ground distance must be calculated, use following
+"""
+T0 = 1
+a = 1
 
-# Case 1: Constant speed cruise at constant altitude (P_s = 0)
+A = g0 * ((T0 / W) - mu)  # T0: Total static thrust at V = 0
+B = (g0 / W) * (0.5 * rho * S * (CD - mu * CL) + a)  # a: Constant
+# take-off ground run distance
+S = (1 / 2 * B) * np.log(A / (A - B * V_takeoff ** 2))
+"""
+
+# Stalling W/S STALL
+WTO_S_stall = 0.5 * rho * V_stall ** 2 * CL
+
+# Case 1: Straight and level flight, CRUISE
 # simplified master equation
-def TSL_WTO_M1(WTO_S):
+def TSL_WTO_CRUISE(WTO_S):
     return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S))
 
 
+# Case 2: CLIMB
+# simplified master equation
+def TSL_WTO_CLIMB(WTO_S):
+    return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / V) * ROC)
+
+# Case: TAKE-OFF
+def TSL_WTO_TO(WTO_S):
+    return (beta / alpha) * ((CD + CDR - mu * CL) * (beta / q) * (WTO_S ** -1) + mu + (1 / g0) * dv_dt)
+
+# Case: TURN
+# simplified master equation
+def TSL_WTO_TURN(WTO_S):
+    return (beta / alpha) * (
+                k * (n ** 2) * (beta / q) * WTO_S + k2 * n + ((CD0 + CDR) * q) / (beta * WTO_S))
+
+WTO_S = np.linspace(0, 500)
+print(WTO_S_stall)
+# plot
+plt.plot(WTO_S, TSL_WTO_TO(WTO_S=WTO_S), ls='--', color='m', label='Take-off condition')
+plt.axvline(x=WTO_S_stall, ls='--', label='Stalling condition')
+plt.plot(WTO_S, TSL_WTO_CRUISE(WTO_S=WTO_S), ls='--', color='b', label='Cruise condition')
+plt.plot(WTO_S, TSL_WTO_CLIMB(WTO_S=WTO_S), ls='--', color='r', label='Climb condition')
+plt.plot(WTO_S, TSL_WTO_TURN(WTO_S=WTO_S), ls='--', color='g', label='Turn condition')
+plt.xlabel('Wing loading [N/m^2]')
+plt.ylabel('Thrust loading [-]')
+plt.legend()
+plt.show()
+
+# other cases and optimum points
+"""
+# Case: Cruise
 # Optimum points
 # Minimum Weight to Area ratio WTO_S_1 (Wing loading)
 WTO_S_1 = (q / beta) * np.sqrt((CD0 + CDR) / k)
 # Minimum Thrust to Weight ratio TSL_WTO_1 (Thrust loading)
 TSL_WTO_1 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2)
 
-
-# Case 2: Constant speed climb (kinetic part of P_s = 0)
-# simplified master equation
-def TSL_WTO_M2(WTO_S):
-    return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / V) * dh_dt)
-
-
+# Case: Climb
 # Optimum points
 # Wing loading
 WTO_S_2 = (q / beta) * np.sqrt((CD0 + CDR) / k)
 # Thrust loading
 TSL_WTO_2 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / V) * dh_dt)
 
-
-# Case 3: Constant altitude, speed turn (P_s = 0)
-# simplified master equation
-def TSL_WTO_M3(WTO_S):
-    return (beta / alpha) * (
-                k * n ** 2 * (beta / q) * WTO_S + k2 * n + (CD0 + CDR) / ((beta / q) * WTO_S))
-
-
+# Case 3: Turn radius
 # Optimum points
 # Wing loading
 WTO_S_3 = (q / (beta * n)) * np.sqrt((CD0 + CDR) / k)
@@ -80,7 +108,13 @@ TSL_WTO_3 = (beta * n / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2)
 # same as for constant speed climb
 # simplified master equation
 def TSL_WTO_M4(WTO_S):
-    return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / V) * dh_dt)
+    return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / V) * ROC)
+
+# Optimum points
+# Wing loading
+WTO_S_4 = (q / beta) * np.sqrt((CD0 + CDR) / k)
+# Thrust loading
+TSL_WTO_4 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / V) * ROC)
 
 
 # Case 5: Constant altitude, horizontal acceleration
@@ -88,6 +122,11 @@ def TSL_WTO_M4(WTO_S):
 def TSL_WTO_M5(WTO_S):
     return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / g0) * dv_dt)
 
+# Optimum points
+# Wing loading
+WTO_S_5 = (q / (beta * n)) * np.sqrt((CD0 + CDR) / k)
+# Thrust loading
+TSL_WTO_5 = (beta * n / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / g0) * dv_dt)
 
 # Case 6: Climb angle
 # simplified master equation
@@ -99,45 +138,5 @@ def TSL_WTO_M6(WTO_S):
 # Wing loading
 WTO_S_6 = (q / beta) * (np.sqrt((CD0 + CDR) / k))
 # Thrust loading
-TSL_WTO_6 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + np.sin(theta))
-
-# write each T/W and W/S to a dataframe and print it
-data = {'Case': ['Constant speed cruise at constant altitude', 'Constant speed climb', 'Constant altitude, speed turn',
-                 'Service Ceiling', 'Constant altitude, constant acceleration', 'Climb angle'],
-        'T/W': [TSL_WTO_1, TSL_WTO_2, TSL_WTO_3, TSL_WTO_2, TSL_WTO_2, TSL_WTO_6],
-        'W/S': [WTO_S_1, WTO_S_2, WTO_S_3, WTO_S_2, WTO_S_2, WTO_S_6]}
-df = pd.DataFrame(data)
-print(df)
-
-# plot of thrust and wing loading
-wing_loading = [WTO_S_1, WTO_S_2, WTO_S_3, WTO_S_2, WTO_S_2, WTO_S_6]
-thrust_loading = [TSL_WTO_1, TSL_WTO_2, TSL_WTO_3, TSL_WTO_2, TSL_WTO_2, TSL_WTO_6]
-
-# plt.axis((950, 1000, -0.5, 15))
-WTO_S = np.linspace(100, 1000, 20)
-# plot with only simplified master equations
+TSL_WTO_6 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + np.sin(theta))  # TODO if needed: theta = np.arctan(Vc / V)  # climb angle
 """
-plt.grid(True)
-plt.xlabel('W/S - Wing Loading [N/m^2]')
-plt.ylabel('T/W - Thrust Loading [-]')
-plt.plot(WTO_S, TSL_WTO_M1(WTO_S=WTO_S), '-bo', WTO_S, TSL_WTO_M2(WTO_S=WTO_S), '-ro', WTO_S, TSL_WTO_M3(WTO_S=WTO_S), '-go', WTO_S, TSL_WTO_M4(WTO_S=WTO_S), '-mo', WTO_S, TSL_WTO_M6(WTO_S=WTO_S), '-ko')
-plt.show()
-"""
-# subplots with simplified master equations and optimum points
-fig, axs = plt.subplots(2)
-fig.suptitle('Constraint Plots and optimal points')
-axs[0].grid(True)
-axs[1].grid(True)
-axs[0].set_xlabel('W/S - Wing Loading [N/m^2]')
-axs[0].set_ylabel('T/W - Thrust Loading [-]')
-axs[0].plot(WTO_S, TSL_WTO_M1(WTO_S=WTO_S), '-bo', WTO_S, TSL_WTO_M2(WTO_S=WTO_S), '-ro', WTO_S,
-            TSL_WTO_M3(WTO_S=WTO_S), '-go', WTO_S, TSL_WTO_M4(WTO_S=WTO_S), '-mo', WTO_S, TSL_WTO_M6(WTO_S=WTO_S), '-go', WTO_S, TSL_WTO_M6(WTO_S=WTO_S),
-            '-ko')
-axs[1].plot(wing_loading, thrust_loading, 'c*')
-plt.show()
-
-# use for naming of points
-"""case_index = 0
-for t, i in zip(wing_loading, thrust_loading):
-    plt.annotate(str(case_index), (t, i), xytext=(t+1, i+1))
-    case_index += 1"""
