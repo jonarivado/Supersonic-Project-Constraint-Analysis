@@ -41,8 +41,8 @@ S = 102  # wing area in m^2
 b = 28.35  # wing span in m
 AR = 8.83  # aspect ratio
 e = 0.8  # oswald efficiency factor
-V = 420  # cruise speed in m/s
-V_stall = 75/1.2  # stall speed in m/s
+V = 1000/3.6  # cruise speed in m/s
+V_stall = 220/3.6  # stall speed in m/s
 V_takeoff = 1.2 * V_stall  # take-off speed in m/s
 rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
 mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
@@ -55,7 +55,7 @@ CDR = 0
 g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
 q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
 ROC = 12  # rate of climb in m/s
-TR = 1400  # turn radius in m
+TR = 8000  # turn radius in m
 n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
 dv_dt = 3  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
 
@@ -63,7 +63,7 @@ alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
 
 # W/S = 4330 N/m^2
-# T/W = 0.34 
+# T/W = 0.343
 
 # if ground distance must be calculated, use following
 """
@@ -106,7 +106,7 @@ print(WTO_S_stall)
 
 #B737 val
 #plot a point
-plt.plot(4330, 0.34, 'o', color='black', label='B737-100')
+plt.plot(4330, 0.343, 'o', color='black', label='B737-100')
 
 plt.plot(WTO_S, TSL_WTO_TO(WTO_S=WTO_S), ls='--', color='m', label='Take-off condition')
 plt.axvline(x=WTO_S_stall, ls='--', label='Stalling condition')
