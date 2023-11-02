@@ -32,6 +32,71 @@ dv_dt = 10  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct im
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
 
+
+# ################################### Airbus A320 Validation ###################################
+# #Sources: https://de.wikipedia.org/wiki/Airbus-A320-Familie#A320_2, https://aviation.stackexchange.com/questions/56025/what-is-the-drag-or-c-d-vs-c-l-of-the-airbus-a320-in-cruise-flight, library: OpenAP, https://calculator.academy/aircraft-turn-radius-calculator/, https://aviation.stackexchange.com/questions/14538/how-to-calculate-the-lift-coefficient-for-the-a320
+# # Aircraft variables & estimates in SI units
+# W = 78000  # weight in kg
+# S = 122.6  # wing area in m^2
+# b = 34.1  # wing span in m
+# AR = b ** 2 / S  # aspect ratio
+# e = 0.8  # oswald efficiency factor
+# V = 828/3.6  # cruise speed in m/s
+# V_stall = 250/3.6  # stall speed in m/s
+# V_takeoff = 1.2 * V_stall  # take-off speed in m/s
+# rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
+# mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
+# k = 0.039 # induced drag constant, k1
+# k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
+# CD0 = 0.018  # zero lift drag coefficient
+# CL = 1.75  # lift coefficient
+# CD = CD0 + k * CL ** 2  # drag coefficient
+# CDR = 0
+# g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
+# q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
+# ROC = 12  # rate of climb in m/s
+# TR = 1306  # turn radius in m
+# n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
+# dv_dt = 10  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
+
+# alpha = 1  # thrust lapse factor
+# beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
+
+# #Expected Values: W/S = 6000 N/m^2, T/W = 0.3
+
+# ################################### Boeing 737-100 Validation ###################################
+# Source: http://www.b737.org.uk/techspecsdetailed.htm
+
+# Aircraft variables & estimates in SI units
+W = 44225  # weight in kg
+S = 102  # wing area in m^2
+b = 28.35  # wing span in m
+AR = 8.83  # aspect ratio
+e = 0.8  # oswald efficiency factor
+V = 420  # cruise speed in m/s
+V_stall = 75/1.2  # stall speed in m/s
+V_takeoff = 1.2 * V_stall  # take-off speed in m/s
+rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
+mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
+k = 0.043  # induced drag constant, k1
+k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
+CD0 = 0.022  # zero lift drag coefficient
+CL = 2.75  # lift coefficient CLMax (Land @ MLW)
+CD = CD0 + k * CL ** 2  # drag coefficient
+CDR = 0
+g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
+q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
+ROC = 12  # rate of climb in m/s
+TR = 1400  # turn radius in m
+n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
+dv_dt = 3  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
+
+alpha = 1  # thrust lapse factor
+beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
+
+# W/S = 4330 N/m^2
+# T/W = 0.34 
+
 # if ground distance must be calculated, use following
 """
 T0 = 1
@@ -67,9 +132,14 @@ def TSL_WTO_TURN(WTO_S):
     return (beta / alpha) * (
                 k * (n ** 2) * (beta / q) * WTO_S + k2 * n + ((CD0 + CDR) * q) / (beta * WTO_S))
 
-WTO_S = np.linspace(0, 500)
+WTO_S = np.linspace(0.1, 7000,2000)
 print(WTO_S_stall)
 # plot
+
+#B737 val
+#plot a point
+plt.plot(4330, 0.34, 'o', color='black', label='B737-100')
+
 plt.plot(WTO_S, TSL_WTO_TO(WTO_S=WTO_S), ls='--', color='m', label='Take-off condition')
 plt.axvline(x=WTO_S_stall, ls='--', label='Stalling condition')
 plt.plot(WTO_S, TSL_WTO_CRUISE(WTO_S=WTO_S), ls='--', color='b', label='Cruise condition')
@@ -77,8 +147,12 @@ plt.plot(WTO_S, TSL_WTO_CLIMB(WTO_S=WTO_S), ls='--', color='r', label='Climb con
 plt.plot(WTO_S, TSL_WTO_TURN(WTO_S=WTO_S), ls='--', color='g', label='Turn condition')
 plt.xlabel('Wing loading [N/m^2]')
 plt.ylabel('Thrust loading [-]')
+# plt.xlim(0, 2000)
+plt.ylim(0, 1)
 plt.legend()
 plt.show()
+
+
 
 # other cases and optimum points
 """
