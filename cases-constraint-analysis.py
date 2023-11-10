@@ -6,19 +6,19 @@ import pandas as pd
 
 # Aircraft variables & estimates in SI units
 W = 10  # weight in kg
-S = 0.5  # wing area in m^2
-b = 1.5  # wing span in m
-AR = 4.54  # aspect ratio
+S = 0.46  # wing area in m^2
+b = 0.91  # wing span in m
+AR = 1.787  # aspect ratio
 e = 0.8  # oswald efficiency factor
 V = 330*0.85  # cruise speed in m/s
-V_stall = 50/3.6  # stall speed in m/s
+V_stall = 80/3.6  # stall speed in m/s
 V_takeoff = 1.2 * V_stall  # take-off speed in m/s
 rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
 mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
-k = 0.0946  # induced drag constant, k1
-k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
-CD0 = 0.00728  # zero lift drag coefficient
-CL = 1.6  # lift coefficient CLMax (Land @ MLW)
+k = 0.0043  # induced drag constant, k1
+k2 = -0.022  # coefficient in lift-drag polar TODO can be set to zero?
+CD0 = 0.033  # zero lift drag coefficient
+CL = 0.76  # lift coefficient CLMax (Land @ MLW)
 CD = CD0 + k * CL ** 2  # drag coefficient
 CDR = 0 # Additional drag factors? TODO can be set to zero?
 g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
@@ -83,7 +83,7 @@ plt.plot(WTO_S, TSL_WTO_TURN(WTO_S=WTO_S), ls='--', color='g', label='Turn condi
 plt.xlabel('Wing loading [N/m^2]')
 plt.ylabel('Thrust loading [-]')
 plt.xlim(0, 500)
-plt.ylim(0, 2)
+plt.ylim(0, 10)
 plt.legend()
 plt.show()
 
