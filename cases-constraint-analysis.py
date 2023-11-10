@@ -6,32 +6,34 @@ import pandas as pd
 import scipy.optimize as opt
 
 # Aircraft variables & estimates in SI units
-W = 25  # weight in kg
-S = 2  # wing area in m^2
-b = 2  # wing span in m
-c = 0.5  # mean aerodynamic chord in m
-AR = b ** 2 / S  # aspect ratio
+W = 10  # weight in kg
+S = 0.5  # wing area in m^2
+b = 1.5  # wing span in m
+AR = 4.54  # aspect ratio
 e = 0.8  # oswald efficiency factor
-V = 100  # cruise speed in m/s
-V_stall = 10  # stall speed in m/s
+V = 330*0.85  # cruise speed in m/s
+V_stall = 50/3.6  # stall speed in m/s
 V_takeoff = 1.2 * V_stall  # take-off speed in m/s
 rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
 mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
-k = 1 / (math.pi * e * AR)  # induced drag constant, k1
+k = 0.0946  # induced drag constant, k1
 k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
-CD0 = 0.005  # zero lift drag coefficient
-CL = 1.2  # lift coefficient
+CD0 = 0.00728  # zero lift drag coefficient
+CL = 1.6  # lift coefficient CLMax (Land @ MLW)
 CD = CD0 + k * CL ** 2  # drag coefficient
-CDR = 0
+CDR = 0 # Additional drag factors? TODO can be set to zero?
 g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
 q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
-ROC = 10  # rate of climb in m/s
-TR = 100  # turn radius in m
+ROC = 20  # rate of climb in m/s
+TR = 1000  # turn radius in m
 n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
 dv_dt = 10  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
 
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
+
+# W/S = 4330 N/m^2
+# T/W = 0.343
 
 # if ground distance must be calculated, use following
 """
@@ -68,9 +70,12 @@ def TSL_WTO_TURN(WTO_S):
     return (beta / alpha) * (
                 k * (n ** 2) * (beta / q) * WTO_S + k2 * n + ((CD0 + CDR) * q) / (beta * WTO_S))
 
-WTO_S = np.linspace(0, 500)
-print(WTO_S_stall)
+WTO_S = np.linspace(0.1, 7000,2000)
 # plot
+
+#plot a point
+# plt.plot(4330, 0.343, 'o', color='black', label='B737-100')
+
 plt.plot(WTO_S, TSL_WTO_TO(WTO_S=WTO_S), ls='--', color='m', label='Take-off condition')
 plt.axvline(x=WTO_S_stall, ls='--', label='Stalling condition')
 plt.plot(WTO_S, TSL_WTO_CRUISE(WTO_S=WTO_S), ls='--', color='b', label='Cruise condition')
@@ -78,8 +83,14 @@ plt.plot(WTO_S, TSL_WTO_CLIMB(WTO_S=WTO_S), ls='--', color='r', label='Climb con
 plt.plot(WTO_S, TSL_WTO_TURN(WTO_S=WTO_S), ls='--', color='g', label='Turn condition')
 plt.xlabel('Wing loading [N/m^2]')
 plt.ylabel('Thrust loading [-]')
+plt.xlim(0, 500)
+plt.ylim(0, 2)
 plt.legend()
 plt.show()
+
+# T/W = 1.25, W/S = 310 N/m^2
+# --> w must be 15.5kg and Engine must provide 200N
+
 
 # other cases and optimum points
 """
