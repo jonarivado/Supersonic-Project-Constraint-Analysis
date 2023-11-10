@@ -19,7 +19,7 @@ mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
 k = 0.0946  # induced drag constant, k1
 k2 = 0  # coefficient in lift-drag polar TODO can be set to zero?
 CD0 = 0.00728  # zero lift drag coefficient
-CL = 1.6  # lift coefficient CLMax (Land @ MLW)
+CL = 3  # lift coefficient CLMax (Land @ MLW)
 CD = CD0 + k * CL ** 2  # drag coefficient
 CDR = 0 # Additional drag factors? TODO can be set to zero?
 g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
@@ -70,11 +70,30 @@ def TSL_WTO_TURN(WTO_S):
     return (beta / alpha) * (
                 k * (n ** 2) * (beta / q) * WTO_S + k2 * n + ((CD0 + CDR) * q) / (beta * WTO_S))
 
+#Optimization Algo
+
+safety_margin_TW = 0.1
+safety_margin_WS = 10
+
+# T/W = x[0] and W/S = x[1]
+constraints = [{'type': 'ineq', 'fun':  lambda x: x[0] - TSL_WTO_CRUISE(x[1])-safety_margin_TW},
+                {'type': 'ineq', 'fun':  lambda x: x[0] - TSL_WTO_CLIMB(x[1])-safety_margin_TW},
+                {'type': 'ineq', 'fun':  lambda x: x[0] - TSL_WTO_TO(x[1])-safety_margin_TW},
+                {'type': 'ineq', 'fun':  lambda x: x[0] - TSL_WTO_TURN(x[1])-safety_margin_TW},
+                {'type': 'eq', 'fun': lambda x: x[1] - WTO_S_stall + safety_margin_WS}]
+
+# initial guess
+x0 = [0.5, 100]
+# optimization
+res = opt.minimize(lambda x: x[0], x0, constraints=constraints,bounds=((0, 10), (0, 1000)))
+print("Opimal T/W: ", round(res.x[0],3))
+print("Optimal W/S: ", round(res.x[1],3))
+
 WTO_S = np.linspace(0.1, 7000,2000)
 # plot
 
-#plot a point
-# plt.plot(4330, 0.343, 'o', color='black', label='B737-100')
+#plot the optimization result
+plt.plot(res.x[1], res.x[0], 'o', color='r', label='Optimum point')
 
 plt.plot(WTO_S, TSL_WTO_TO(WTO_S=WTO_S), ls='--', color='m', label='Take-off condition')
 plt.axvline(x=WTO_S_stall, ls='--', label='Stalling condition')
@@ -87,9 +106,6 @@ plt.xlim(0, 500)
 plt.ylim(0, 2)
 plt.legend()
 plt.show()
-
-# T/W = 1.25, W/S = 310 N/m^2
-# --> w must be 15.5kg and Engine must provide 200N
 
 
 # other cases and optimum points
