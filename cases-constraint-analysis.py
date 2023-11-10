@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import ambiance as amb
 import math
 import pandas as pd
+import scipy.optimize as opt
 
 # Aircraft variables & estimates in SI units
 W = 25  # weight in kg
@@ -82,27 +83,6 @@ plt.show()
 
 # other cases and optimum points
 """
-# Case: Cruise
-# Optimum points
-# Minimum Weight to Area ratio WTO_S_1 (Wing loading)
-WTO_S_1 = (q / beta) * np.sqrt((CD0 + CDR) / k)
-# Minimum Thrust to Weight ratio TSL_WTO_1 (Thrust loading)
-TSL_WTO_1 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2)
-
-# Case: Climb
-# Optimum points
-# Wing loading
-WTO_S_2 = (q / beta) * np.sqrt((CD0 + CDR) / k)
-# Thrust loading
-TSL_WTO_2 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / V) * dh_dt)
-
-# Case 3: Turn radius
-# Optimum points
-# Wing loading
-WTO_S_3 = (q / (beta * n)) * np.sqrt((CD0 + CDR) / k)
-# Thrust loading
-TSL_WTO_3 = (beta * n / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2)
-
 
 # Case 4: Service Ceiling (max. altitude performance)
 # same as for constant speed climb
@@ -110,23 +90,12 @@ TSL_WTO_3 = (beta * n / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2)
 def TSL_WTO_M4(WTO_S):
     return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / V) * ROC)
 
-# Optimum points
-# Wing loading
-WTO_S_4 = (q / beta) * np.sqrt((CD0 + CDR) / k)
-# Thrust loading
-TSL_WTO_4 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / V) * ROC)
-
 
 # Case 5: Constant altitude, horizontal acceleration
 # simplified master equation
 def TSL_WTO_M5(WTO_S):
     return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + (1 / g0) * dv_dt)
 
-# Optimum points
-# Wing loading
-WTO_S_5 = (q / (beta * n)) * np.sqrt((CD0 + CDR) / k)
-# Thrust loading
-TSL_WTO_5 = (beta * n / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + (1 / g0) * dv_dt)
 
 # Case 6: Climb angle
 # simplified master equation
@@ -134,9 +103,4 @@ def TSL_WTO_M6(WTO_S):
     return (beta / alpha) * (k * (beta / q) * WTO_S + k2 + (CD0 + CDR) / ((beta / q) * WTO_S) + np.sin(theta))
 
 
-# Optimum points
-# Wing loading
-WTO_S_6 = (q / beta) * (np.sqrt((CD0 + CDR) / k))
-# Thrust loading
-TSL_WTO_6 = (beta / alpha) * (2 * np.sqrt(k * (CD0 + CDR)) + k2 + np.sin(theta))  # TODO if needed: theta = np.arctan(Vc / V)  # climb angle
 """
