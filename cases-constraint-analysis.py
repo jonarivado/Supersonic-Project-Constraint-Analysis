@@ -112,7 +112,7 @@ S = (1 / 2 * B) * np.log(A / (A - B * V_takeoff ** 2))
 # plt.show()
 
 
-class constraintAnalysis:
+class ConstraintAnalysis:
     def __init__(self,W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0):
         self.W = W
         self.S = S
@@ -175,6 +175,9 @@ class constraintAnalysis:
     
     def plot(self):
         
+        #assert that the optimize function has been run, otherwise throw an error
+        assert hasattr(self, 'res') and hasattr(self.res, 'x'), "Optimization not performed. Please run optimize() first."
+
         WTO_S = np.linspace(0.1, 7000,2000)
         # plot
 
@@ -197,8 +200,8 @@ class constraintAnalysis:
     
 
 
-newoptim = constraintAnalysis(W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta, safety_margin_TW, safety_margin_WS)
-# print(newoptim.optimize())
+newoptim = ConstraintAnalysis(W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta, safety_margin_TW, safety_margin_WS)
+newoptim.optimize()
 newoptim.plot()
 
 # other cases and optimum points
