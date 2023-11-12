@@ -64,6 +64,9 @@ class ConstraintAnalysis:
         self.res = opt.minimize(lambda x: x[0], x0, constraints=constraints,bounds=((0, 10), (0, 1000)))
         print("Opimal T/W: ", round(self.res.x[0],3))
         print("Optimal W/S: ", round(self.res.x[1],3))
+        print("Required Thrust: ", round(self.res.x[0]*round(self.res.x[1]*self.S,3),3), " N")
+        print("Optimal W: ", round(self.res.x[1]*self.S/self.g0,3), " kg")
+
         return self.res.x[0], self.res.x[1]
     
     def plot(self):
