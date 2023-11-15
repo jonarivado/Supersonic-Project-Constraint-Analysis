@@ -90,5 +90,5 @@ class ConstraintAnalysis:
         plt.xlim(0, 500)
         plt.ylim(0, 2)
         plt.legend()
-        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[1],3))+ ', W/S: '+str(round(self.res.x[0],3)))
+        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[0],3))+ ', W/S: '+str(round(self.res.x[1],3)))
         plt.show()
