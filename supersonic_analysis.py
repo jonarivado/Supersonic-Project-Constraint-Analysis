@@ -6,7 +6,7 @@ import pandas as pd
 import scipy.optimize as opt
 
 class ConstraintAnalysis:
-    def __init__(self,W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0):
+    def __init__(self,W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2):
         self.W = W
         self.S = S
         self.b = b
@@ -34,6 +34,8 @@ class ConstraintAnalysis:
         self.res = [0,0]
         self.safety_margin_TW = safety_margin_TW
         self.safety_margin_WS = safety_margin_WS
+        self.plot_max_x = plot_max_x
+        self.plot_max_y = plot_max_y
 
     def TSL_WTO_CRUISE(self, WTO_S):
         return (self.beta / self.alpha) * (self.k * (self.beta / self.q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / self.q) * WTO_S))
@@ -87,8 +89,32 @@ class ConstraintAnalysis:
         plt.plot(WTO_S, self.TSL_WTO_TURN(WTO_S=WTO_S), ls='--', color='g', label='Turn condition')
         plt.xlabel('Wing loading [N/m^2]')
         plt.ylabel('Thrust loading [-]')
-        plt.xlim(0, 500)
-        plt.ylim(0, 2)
+        plt.xlim(0, self.plot_max_x)
+        plt.ylim(0, self.plot_max_y)
         plt.legend()
-        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[0],3))+ ', W/S: '+str(round(self.res.x[1],3)))
+        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[0],3))+ ', W/S: '+str(round(self.res.x[1],3))+', W: '+str(round(self.res.x[1]*self.S/self.g0,3))+' kg')
         plt.show()
+
+    def load_factor(self):
+        return round(math.sqrt(1 + (self.V ** 2 / (self.g0 * self.TR)) ** 2),3)
+    
+class DragPolar:
+    def __init__(self,filename):
+        self.filename = filename
+        self.df = pd.read_csv(self.filename,delim_whitespace=True)
+        
+        
+    def dataframe(self):
+        return self.df
+    
+    def calculate_coeff(self):
+        """
+        coeffcients = [K1,K2,CD0]
+        """
+        x = self.df['CL'].values.flatten()
+        y = self.df['CDtot'].values.flatten()
+        coefficients = np.polyfit(x, y, 2)
+        K1 = coefficients[0]
+        K2 = coefficients[1]
+        CD0 = coefficients[2]
+        return {'K1':K1,'K2':K2,'CD0':CD0}
