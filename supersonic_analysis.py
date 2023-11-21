@@ -40,7 +40,7 @@ class ConstraintAnalysis:
         self.a_std = a_std  # can be calculated: a = a_std * sqrt(theta), theta: mission angle, depends on altitude and temperature
         self.delta_h = delta_h  # TODO need to define mission altitude !
         self.N = N  # number of turns
-        self.theta = theta  # angle depending on altitude and temperature
+        self.theta = theta  # mission angle depending on altitude and temperature
         self.delta_s = delta_s  # cruise range
 
     def TSL_WTO_CRUISE(self, WTO_S):
@@ -71,7 +71,7 @@ class ConstraintAnalysis:
     def FUEL_WR_TAKEOFF(self):
         xi = self.CD + self.CDR - self.mu * self.CL
         u = (xi * (self.q * self.beta) * (self.res.x[1]**-1) + self.mu) * (self.beta / self.alpha) * self.res.x[0]
-        return np.exp(- (self.C1 + self.C2 * self.M * self.theta / self.g0) * (self.k_to * self.V_stall / (1 - u)))
+        return np.exp(- (self.C1 + self.C2 * self.M * self.theta / self.g0) * (self.V_takeoff / (1 - u)))
 
     def TOTAL_FUEL_WR(self):
         return self.FUEL_WR_CLIMB() * self.FUEL_WR_TURN() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
@@ -81,7 +81,13 @@ class ConstraintAnalysis:
 
     def WTO(self):  # TODO determine payload weight WP
         return self.WP / (1 - self.TOTAL_FUEL_WR() - self.TOTAL_EMPTY_WR())
-    
+
+    def THRUST(self):
+        return self.res.x[0] * self.WTO()
+
+    def WING_AREA(self):
+        return self.res.x[1] / self.WTO()
+
     def optimize(self):
         constraints = [{'type': 'ineq', 'fun':  lambda x: x[0] - self.TSL_WTO_CRUISE(x[1])-self.safety_margin_TW},
                 {'type': 'ineq', 'fun':  lambda x: x[0] - self.TSL_WTO_CLIMB(x[1])-self.safety_margin_TW},
