@@ -1,4 +1,4 @@
-from supersonic_analysis import ConstraintAnalysis
+from supersonic_analysis import ConstraintAnalysis, DragPolar
 import ambiance as amb
 import math
 
@@ -34,6 +34,10 @@ safety_margin_WS = 10
 
 plot_max_x = 500
 plot_max_y = 4
+
+dragpolar = DragPolar(filename="testpolar.polar")
+DPcoeff = dragpolar.calculate_coeff()
+print(DPcoeff)
 
 newCA = ConstraintAnalysis(W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW,safety_margin_WS,plot_max_x,plot_max_y)
 newCA.optimize()

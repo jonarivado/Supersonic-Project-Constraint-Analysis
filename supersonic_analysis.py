@@ -6,7 +6,7 @@ import pandas as pd
 import scipy.optimize as opt
 
 class ConstraintAnalysis:
-    def __init__(self,W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2, C1, C2, M, a_std, delta_h, N, theta, delta_s):
+    def __init__(self,W, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2, C1=0, C2=0, M=0, a_std=0, delta_h=0, N=0, theta=0, delta_s=0):
         self.W = W  # TODO is this payload weight or do we even have? otherwise formula doesn't make much sense!
         self.S = S
         self.b = b
