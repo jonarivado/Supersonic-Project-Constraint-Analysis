@@ -126,12 +126,12 @@ class MissionAnalysis:
         #assert hasattr(self, 'res') and hasattr(self.res, 'x'), "Optimization not performed. Please run optimize() first."
 
     def FUEL_WR_CLIMB(self):
-        C = 1.323  # [1/h]
+        C = 0.005  # [1/h]
         W_climb = np.exp(-C / (self.a * np.sqrt(self.theta)) * (self.delta_h / (1 - (((self.CD + self.CDR) * self.beta / (self.CL * self.alpha)) * self.res[0]))))
         return W_climb
 
     def FUEL_WR_TURN(self):
-        C = 1.732  # [1/h]
+        C = 0.001  # [1/h]
         W_turn = np.exp(-C * np.sqrt(self.theta) * ((self.CD + self.CDR) * self.n / self.CL) * (2*np.pi * self.N * self.V) / (self.g0 * np.sqrt(self.n**2 - 1)))
         return W_turn
 
@@ -141,7 +141,7 @@ class MissionAnalysis:
         return W_cruise
 
     def FUEL_WR_TAKEOFF(self):
-        C = 1.627  # [1/h]
+        C = 0.0001 # [1/h]
         xi = self.CD + self.CDR - self.mu * self.CL
         u = (xi * (self.q * self.beta) * ((self.res[1])**-1) + self.mu) * (self.beta / self.alpha) * self.res[0]
         W_takeoff = np.exp(-C * np.sqrt(self.theta) / self.g0 * (self.V_takeoff / (1 - u)))
@@ -149,7 +149,10 @@ class MissionAnalysis:
 
     def TOTAL_FUEL_WR(self):
         W_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_TURN() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
-        print('Climb: ' + str(self.FUEL_WR_CLIMB()), 'Turn: ' + str(self.FUEL_WR_TURN()), 'Cruise: ' + str(self.FUEL_WR_CRUISE()), 'Takeoff: ' + str(self.FUEL_WR_TAKEOFF()))
+        print('Climb: ' + str(self.FUEL_WR_CLIMB()))
+        print('Turn: ' + str(self.FUEL_WR_TURN()))
+        print('Cruise: ' + str(self.FUEL_WR_CRUISE()))
+        print('Takeoff: ' + str(self.FUEL_WR_TAKEOFF()))
         print('W_x: ' + str(W_x))
         W_fuel = 1.06 * (1 - W_x)
         print('W_fuel: ' + str(W_fuel))
