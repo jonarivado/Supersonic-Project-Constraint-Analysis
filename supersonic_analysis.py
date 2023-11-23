@@ -102,9 +102,10 @@ class ConstraintAnalysis:
 
 
 class MissionAnalysis:
-    def __init__(self, WP, a, q, CL, CD, CDR, alpha, beta, res, delta_h, n, theta, N, V, g0, delta_s, mu, V_takeoff):
+    def __init__(self, WP, a, M, q, CL, CD, CDR, alpha, beta, res, delta_h, n, theta, N, V, g0, R, mu, V_takeoff):
         self.WP = WP
         self.a = a
+        self.M = M
         self.q = q
         self.CL = CL
         self.CD = CD
@@ -118,37 +119,57 @@ class MissionAnalysis:
         self.N = N
         self.V = V
         self.g0 = g0
-        self.delta_s = delta_s
+        self.R = R
         self.mu = mu
         self.V_takeoff = V_takeoff
 
-        # assert that the optimize function has been run, otherwise throw an error
-        #assert hasattr(self, 'res') and hasattr(self.res, 'x'), "Optimization not performed. Please run optimize() first."
+    # Turbojet engine max power, eq. 3.55b, p. 71, Mattingly
+    def TSFC(self, M, theta):
+        return (1.5 + 0.23 * M) * np.sqrt(theta)
 
+    # Equation 3.20, p 62, Mattingly
     def FUEL_WR_CLIMB(self):
-        C = 0.005  # [1/h]
-        W_climb = np.exp(-C / (self.a * np.sqrt(self.theta)) * (self.delta_h / (1 - (((self.CD + self.CDR) * self.beta / (self.CL * self.alpha)) * self.res[0]))))
-        return W_climb
+        """theta = 0.9931
+        C = self.TSFC(M=self.M, theta=theta)  # [1/h]
+        u = ((self.CD + self.CDR) / self.CL) * (self.beta / self.alpha) * (self.res[0]**-1)
+        W_climb = np.exp((-C / self.a) * ((self.delta_h + (self.V**2) / (2*self.g0)) / (1 - u)))
+        return W_climb"""
+        return 0.920
 
+    # Equation 3.25, p. 64, Mattingly
     def FUEL_WR_TURN(self):
-        C = 0.001  # [1/h]
+        """C = self.TSFC(M=self.M, theta=self.theta)  # [1/h]
         W_turn = np.exp(-C * np.sqrt(self.theta) * ((self.CD + self.CDR) * self.n / self.CL) * (2*np.pi * self.N * self.V) / (self.g0 * np.sqrt(self.n**2 - 1)))
-        return W_turn
+        return W_turn"""
 
+    # Equation 3.23, p.63, Mattingly
     def FUEL_WR_CRUISE(self):
-        C = 0.9  # [1/h]
+        """C = 1.684  # [1/h]
         W_cruise = np.exp(- (C / (self.a * np.sqrt(self.theta)) * ((self.CD + self.CDR) / self.CL) * self.delta_s))
+        return W_cruise"""
+        pass
+
+    # Brequet Range equation, Raymer
+    def FUEL_WR_CRUISE(self):
+        C = self.TSFC(M=self.M, theta=self.theta)
+        V = 280.5
+        L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
+        W_cruise = np.exp(- (self.R*C) / (self.V*L_D_ratio))
         return W_cruise
 
+    # Equation 3.21, 3.22, p. 63, Mattingly
     def FUEL_WR_TAKEOFF(self):
-        C = 0.0001 # [1/h]
+        """theta = 1.000
+        C = self.TSFC(M=0.05, theta=theta) # [1/h]
         xi = self.CD + self.CDR - self.mu * self.CL
         u = (xi * (self.q * self.beta) * ((self.res[1])**-1) + self.mu) * (self.beta / self.alpha) * self.res[0]
-        W_takeoff = np.exp(-C * np.sqrt(self.theta) / self.g0 * (self.V_takeoff / (1 - u)))
-        return W_takeoff
+        W_takeoff = np.exp(-C * np.sqrt(theta) / self.g0 * (self.V_takeoff / (1 - u)))
+        return W_takeoff"""
+        # Historical value
+        return 0.995
 
     def TOTAL_FUEL_WR(self):
-        W_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_TURN() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
+        W_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
         print('Climb: ' + str(self.FUEL_WR_CLIMB()))
         print('Turn: ' + str(self.FUEL_WR_TURN()))
         print('Cruise: ' + str(self.FUEL_WR_CRUISE()))
@@ -159,27 +180,29 @@ class MissionAnalysis:
         return W_fuel
 
     def TOTAL_EMPTY_WR(self, W_guess, W_fuel):
-        # definition of empty weight ration for UAV small
+        # definition of empty weight ratio for UAV small
         We_WTO = 0.97 * W_guess ** -0.06
         WTO_calc = self.WP / (1 - W_fuel - We_WTO)
-        """count = 0
-        while count != 6:
-            print(WTO_guess)
-            WTO_guess += 1
-            print(We_WTO, WTO_calc)
-            count += 1
-        return WTO_calc"""
+        while W_guess != 50:
+            We_WTO = 0.97 * W_guess ** -0.06
+            W_guess += 1
+            WTO_calc = self.WP / (1 - W_fuel - We_WTO)
+            print('We_WTO: ' + str(We_WTO), ' ', 'W_guess: ' + str(W_guess), ' ', 'WTO_calc: ' + str(WTO_calc))
         print('We_WTO: ' + str(We_WTO), 'Calculated takeoff weight: ' + str(WTO_calc))
         return We_WTO, WTO_calc
 
     """def WTO(self):  # TODO determine payload weight WP
         return self.WP / (1 - self.TOTAL_FUEL_WR() - self.TOTAL_EMPTY_WR(W_guess))"""
 
-    def THRUST(self):
-        return self.res.x[0] * self.WTO()
+    def THRUST(self, WTO):
+        thrust = self.res[0] * WTO
+        print('Required thrust: ' + str(thrust))
+        return thrust
 
-    def WING_AREA(self):
-        return self.res.x[1] / self.WTO()
+    def WING_AREA(self, WTO):
+        wing_area = self.res[1] / WTO
+        print('Required wing area: ' + str(wing_area))
+        return wing_area
 
 
 class DragPolar:
