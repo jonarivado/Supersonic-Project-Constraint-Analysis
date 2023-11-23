@@ -129,7 +129,7 @@ class ConstraintAnalysis:
         plt.xlim(0, self.plot_max_x)
         plt.ylim(0, self.plot_max_y)
         plt.legend()
-        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[0],3))+ ', W/S: '+str(round(self.res.x[1],3))+', W: '+str(round(self.res.x[1]*self.S/self.g0,3))+' kg')
+        plt.title('Optima w/ margin: T/W: ' +str(round(self.res.x[0],3))+ ', W/S: '+str(round(self.res.x[1],3))+', W: '+str(round(self.res.x[1]*self.S/self.g0,3))+' kg'+', T: '+str(round(self.res.x[0]*round(self.res.x[1]*self.S, 3), 3))+' N')
         plt.show()
 
     def load_factor(self):
