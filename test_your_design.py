@@ -51,8 +51,4 @@ newCA.optimize()
 print(newCA.load_factor())
 newCA.plot()
 
-newMA = MissionAnalysis(WP, a, q, CL, CD, CDR, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, delta_s, mu, V_takeoff)
-W_fuel = newMA.TOTAL_FUEL_WR()
-print(W_fuel)
-newMA.TOTAL_EMPTY_WR(W_guess=newCA.optimize()[1], W_fuel=W_fuel)
-# input res in mission analysis class
+
