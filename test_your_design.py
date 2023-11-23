@@ -31,7 +31,7 @@ dv_dt = 20  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct im
 delta_h = 400  # mission altitude in m
 N = 1  # number of turns, counted in video
 theta = 0.9863  # mission angle at mission altitude on standard day conditions
-delta_s = 500  # mission range in m
+R = 600  # mission range in m
 
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
@@ -49,6 +49,12 @@ print(DPcoeff)
 newCA = ConstraintAnalysis(W, WP, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW,safety_margin_WS,plot_max_x,plot_max_y)
 newCA.optimize()
 print(newCA.load_factor())
-newCA.plot()
+# newCA.plot()
 
-
+newMA = MissionAnalysis(WP, a, M, q, CL, CD, CDR, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, R, mu, V_takeoff)
+W_fuel = newMA.TOTAL_FUEL_WR()
+print(W_fuel)
+We_WTO, WTO_calc = newMA.TOTAL_EMPTY_WR(W_guess=23, W_fuel=W_fuel)
+# W_guess=newCA.optimize()[1]*S/g0
+newMA.THRUST(WTO=WTO_calc)
+newMA.WING_AREA(WTO=WTO_calc)
