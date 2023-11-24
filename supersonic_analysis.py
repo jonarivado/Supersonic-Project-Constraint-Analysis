@@ -169,27 +169,34 @@ class MissionAnalysis:
         return 0.995
 
     def TOTAL_FUEL_WR(self):
-        W_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
+        w_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
         print('Climb: ' + str(self.FUEL_WR_CLIMB()))
         print('Turn: ' + str(self.FUEL_WR_TURN()))
         print('Cruise: ' + str(self.FUEL_WR_CRUISE()))
         print('Takeoff: ' + str(self.FUEL_WR_TAKEOFF()))
-        print('W_x: ' + str(W_x))
-        W_fuel = 1.06 * (1 - W_x)
+        print('W_x: ' + str(w_x))
+        W_fuel = 1.06 * (1 - w_x)
         print('W_fuel: ' + str(W_fuel))
         return W_fuel
 
-    def TOTAL_EMPTY_WR(self, W_guess, W_fuel):
-        # definition of empty weight ratio for UAV small
-        We_WTO = 0.97 * W_guess ** -0.06
-        WTO_calc = self.WP / (1 - W_fuel - We_WTO)
-        while W_guess != 50:
-            We_WTO = 0.97 * W_guess ** -0.06
-            W_guess += 1
-            WTO_calc = self.WP / (1 - W_fuel - We_WTO)
-            print('We_WTO: ' + str(We_WTO), ' ', 'W_guess: ' + str(W_guess), ' ', 'WTO_calc: ' + str(WTO_calc))
-        print('We_WTO: ' + str(We_WTO), 'Calculated takeoff weight: ' + str(WTO_calc))
-        return We_WTO, WTO_calc
+    # definition of empty weight ratio for UAV small
+    def calculate_ewf(self, w_guess):
+        ewf = 0.97 * w_guess ** -0.06
+        return ewf
+
+    def TOTAL_WR(self, initial_w_guess, w_fuel):
+        w_guess = initial_w_guess
+        while True:
+            ewf = self.calculate_ewf(w_guess=w_guess)
+            WTO_calc = self.WP / (1 - w_fuel - ewf)
+
+            if abs(WTO_calc - w_guess) < 0.001:
+                break
+
+            w_guess = WTO_calc
+            print(w_guess)
+
+        return w_guess
 
     """def WTO(self):  # TODO determine payload weight WP
         return self.WP / (1 - self.TOTAL_FUEL_WR() - self.TOTAL_EMPTY_WR(W_guess))"""

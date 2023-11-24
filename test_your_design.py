@@ -4,7 +4,7 @@ import math
 
 # Aircraft variables & estimates in SI units
 W = 10  # weight in kg
-WP = 1  # payload weight in kg
+WP = 1000  # payload weight in ???
 S = 0.463318  # wing area in m^2
 b = 0.91  # wing span in m
 AR = 1.78733  # aspect ratio
@@ -49,4 +49,11 @@ print(DPcoeff)
 newCA = ConstraintAnalysis(W, WP, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW,safety_margin_WS,plot_max_x,plot_max_y)
 newCA.optimize()
 print(newCA.load_factor())
-newCA.plot()
+# newCA.plot()
+
+newMA = MissionAnalysis(WP, a, M, q, CL, CD, CDR, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, R, mu, V_takeoff)
+w_fuel = newMA.TOTAL_FUEL_WR()
+WTO_calc = newMA.TOTAL_WR(initial_w_guess=2300, w_fuel=w_fuel)
+# W_guess=newCA.optimize()[1]*S/g0
+newMA.THRUST(WTO=WTO_calc)
+newMA.WING_AREA(WTO=WTO_calc)
