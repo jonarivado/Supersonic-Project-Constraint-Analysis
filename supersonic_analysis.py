@@ -66,18 +66,22 @@ class ConstraintAnalysis:
         x0 = [0.5, 100]
         # optimization
         self.res = opt.minimize(lambda x: x[0], x0, constraints=constraints, bounds=((0, 10), (0, 1000)))
-        print("Optimal T/W: ", round(self.res.x[0], 3))
-        print("Optimal W/S: ", round(self.res.x[1], 3))
-        print("Required Thrust: ", round(self.res.x[0]*round(self.res.x[1]*self.S, 3), 3), " N")
-        print("Optimal W: ", round(self.res.x[1]*self.S/self.g0, 3), " kg")
+        if self.res.x[0] >= 10:
+            print("Optimization failed (T/W > 10). Please check constraints or drag polar.")
+            return None
+        else:
+            print("Optimal T/W: ", round(self.res.x[0], 3))
+            print("Optimal W/S: ", round(self.res.x[1], 3))
+            print("Required Thrust: ", round(self.res.x[0]*round(self.res.x[1]*self.S, 3), 3), " N")
+            print("Optimal W: ", round(self.res.x[1]*self.S/self.g0, 3), " kg")
 
-        return self.res.x[0], self.res.x[1]
+            return self.res.x[0], self.res.x[1]
     
     def plot(self):
         
         #assert that the optimize function has been run, otherwise throw an error
         assert hasattr(self, 'res') and hasattr(self.res, 'x'), "Optimization not performed. Please run optimize() first."
-
+        assert self.res.x[0] < 10, "Optimization failed (T/W > 10). Please check constraints or drag polar."
         WTO_S = np.linspace(0.1, 7000, 2000)
         # plot
 
