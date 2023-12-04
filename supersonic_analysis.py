@@ -102,7 +102,7 @@ class ConstraintAnalysis:
 
 
 class MissionAnalysis:
-    def __init__(self, WP, a, M, q, CL, CD, CDR, alpha, beta, res, delta_h, n, theta, N, V, g0, R, mu, V_takeoff):
+    def __init__(self, WP, a, M, q, CL, CD, CDR, CD0, alpha, beta, res, delta_h, n, theta, N, V, g0, R, mu, V_takeoff, e, S):
         self.WP = WP
         self.a = a
         self.M = M
@@ -110,6 +110,7 @@ class MissionAnalysis:
         self.CL = CL
         self.CD = CD
         self.CDR = CDR
+        self.CD0 = CD0
         self.alpha = alpha
         self.beta = beta
         self.res = res
@@ -122,6 +123,8 @@ class MissionAnalysis:
         self.R = R
         self.mu = mu
         self.V_takeoff = V_takeoff
+        self.e = e
+        self.S = S
 
     # Turbojet engine max power, eq. 3.55b, p. 71, Mattingly
     def TSFC(self, M, theta):
@@ -134,7 +137,8 @@ class MissionAnalysis:
         u = ((self.CD + self.CDR) / self.CL) * (self.beta / self.alpha) * (self.res[0]**-1)
         W_climb = np.exp((-C / self.a) * ((self.delta_h + (self.V**2) / (2*self.g0)) / (1 - u)))
         return W_climb"""
-        return 0.920
+        wr_climb = 1.0065 - 0.0325 * self.M  # eq. 6.9 from Raymer
+        return wr_climb
 
     # Equation 3.25, p. 64, Mattingly
     def FUEL_WR_TURN(self):
@@ -153,7 +157,8 @@ class MissionAnalysis:
     def FUEL_WR_CRUISE(self):
         C = self.TSFC(M=self.M, theta=self.theta)
         V = 280.5
-        L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
+        # L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
+        L_D_ratio = 1 / (((self.q * self.CD0) / (self.res[1]**-1)) + (self.res[1] + (1 / (self.q * np.pi + self.S * self.e))))
         W_cruise = np.exp(- (self.R*C) / (self.V*L_D_ratio))
         return W_cruise
 
@@ -165,8 +170,8 @@ class MissionAnalysis:
         u = (xi * (self.q * self.beta) * ((self.res[1])**-1) + self.mu) * (self.beta / self.alpha) * self.res[0]
         W_takeoff = np.exp(-C * np.sqrt(theta) / self.g0 * (self.V_takeoff / (1 - u)))
         return W_takeoff"""
-        # Historical value
-        return 0.995
+        # Historical value, from Raymer eq. 6.8
+        return 0.98
 
     def TOTAL_FUEL_WR(self):
         w_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()

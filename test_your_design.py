@@ -51,9 +51,9 @@ newCA.optimize()
 print(newCA.load_factor())
 # newCA.plot()
 
-newMA = MissionAnalysis(WP, a, M, q, CL, CD, CDR, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, R, mu, V_takeoff)
+newMA = MissionAnalysis(WP, a, M, q, CL, CD, CDR, CD0, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, R, mu, V_takeoff, e, S)
 w_fuel = newMA.TOTAL_FUEL_WR()
-WTO_calc = newMA.TOTAL_WR(initial_w_guess=2300, w_fuel=w_fuel)
+# WTO_calc = newMA.TOTAL_WR(initial_w_guess=2300, w_fuel=w_fuel)
 # W_guess=newCA.optimize()[1]*S/g0
-newMA.THRUST(WTO=WTO_calc)
-newMA.WING_AREA(WTO=WTO_calc)
+# newMA.THRUST(WTO=WTO_calc)
+# newMA.WING_AREA(WTO=WTO_calc)
