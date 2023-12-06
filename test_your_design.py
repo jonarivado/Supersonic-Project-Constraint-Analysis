@@ -1,4 +1,4 @@
-from supersonic_analysis import ConstraintAnalysis, DragPolar, MissionAnalysis
+from supersonic_analysis import ConstraintAnalysis, DragPolar, MissionAnalysis, MissionStep
 import ambiance as amb
 import math
 
@@ -47,13 +47,14 @@ DPcoeff = dragpolar.calculate_coeff()
 print(DPcoeff)
 
 newCA = ConstraintAnalysis(W, WP, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW,safety_margin_WS,plot_max_x,plot_max_y)
-newCA.optimize()
+TWR, WSR = newCA.optimize()
 print(newCA.load_factor())
 # newCA.plot()
 
-newMA = MissionAnalysis(WP, a, M, q, CL, CD, CDR, CD0, alpha, beta, newCA.optimize(), delta_h, n, theta, N, V, g0, R, mu, V_takeoff, e, S)
-w_fuel = newMA.TOTAL_FUEL_WR()
-# WTO_calc = newMA.TOTAL_WR(initial_w_guess=2300, w_fuel=w_fuel)
-# W_guess=newCA.optimize()[1]*S/g0
-# newMA.THRUST(WTO=WTO_calc)
-# newMA.WING_AREA(WTO=WTO_calc)
+
+mission = MissionAnalysis(WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e)
+mission.add(MissionStep("Takeoff", {"Mach number": 0.5, "Theta": 0.909, "Velocity": 250, "Alpha": 1.0, "Beta": 0.9895}))
+mission.add(MissionStep("Climb", {"Mach number": 0.6, "Theta": 0.8, "V_climb": 125, "Mission altitude": 400, "Alpha": 1.0, "Beta": 1.0}))
+mission.add(MissionStep("Turn", {"Mach number": 0.7, "Theta": 0.7, "Number of turns": 25, "V_turn": 120, "Turn radius": 250}))
+mission.add(MissionStep("Cruise", {"Mach number": 0.85, "Theta": 0.6, "Range": 600, "V_cruise": 250}))
+mission.analyze()
