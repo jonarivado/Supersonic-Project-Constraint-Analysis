@@ -100,85 +100,105 @@ class ConstraintAnalysis:
     def load_factor(self):
         return round(math.sqrt(1 + (self.V ** 2 / (self.g0 * self.TR)) ** 2),3)
 
+class MissionStep:
+    def __init__(self, step_type, details):
+        self.step_type = step_type
+        self.details = details
 
 class MissionAnalysis:
-    def __init__(self, WP, a, M, q, CL, CD, CDR, CD0, alpha, beta, res, delta_h, n, theta, N, V, g0, R, mu, V_takeoff, e, S):
-        self.WP = WP
-        self.a = a
-        self.M = M
-        self.q = q
-        self.CL = CL
+    def __init__(self, WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e):
+        self.mission_steps = []
+        self.WP = WP  # payload weight
         self.CD = CD
         self.CDR = CDR
         self.CD0 = CD0
-        self.alpha = alpha
-        self.beta = beta
-        self.res = res
-        self.delta_h = delta_h
-        self.n = n
-        self.theta = theta
-        self.N = N
-        self.V = V
-        self.g0 = g0
-        self.R = R
         self.mu = mu
-        self.V_takeoff = V_takeoff
-        self.e = e
+        self.CL = CL
+        self.TWR = TWR  # thrust to weight ratio
+        self.WSR = WSR  # weight to wing area ratio
+        self.g0 = g0
+        self.rho = rho
+        self.a = a
         self.S = S
+        self.e = e
+
+    def add(self, step):
+        self.mission_steps.append(step)
 
     # Turbojet engine max power, eq. 3.55b, p. 71, Mattingly
     def TSFC(self, M, theta):
         return (1.5 + 0.23 * M) * np.sqrt(theta)
 
+    # Equation 3.21, 3.22, p. 63, Mattingly
+    def TAKEOFF(self, M, theta, V_takeoff, alpha, beta):
+        C = self.TSFC(M=M, theta=theta) # [1/h]
+        q = 0.5 * self.rho * V_takeoff**2
+        xi = self.CD + self.CDR - self.mu * self.CL
+        u = (xi * (q * beta) * ((self.WSR)**-1) + self.mu) * (beta / alpha) * self.TWR
+        W_takeoff = np.exp(-C * np.sqrt(theta) / self.g0 * (V_takeoff / (1 - u)))
+        step_details = {"Mach number": M, "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta}
+        step = MissionStep("Takeoff", step_details)
+        self.add(step)
+        # Historical value, from Raymer eq. 6.8
+        return W_takeoff
+
     # Equation 3.20, p 62, Mattingly
-    def FUEL_WR_CLIMB(self):
-        """theta = 0.9931
-        C = self.TSFC(M=self.M, theta=theta)  # [1/h]
-        u = ((self.CD + self.CDR) / self.CL) * (self.beta / self.alpha) * (self.res[0]**-1)
-        W_climb = np.exp((-C / self.a) * ((self.delta_h + (self.V**2) / (2*self.g0)) / (1 - u)))
-        return W_climb"""
-        wr_climb = 1.0065 - 0.0325 * self.M  # eq. 6.9 from Raymer
-        return wr_climb
+    def CLIMB(self, M, theta, V_climb, delta_h, alpha, beta):
+        theta = 0.9931
+        C = self.TSFC(M=M, theta=theta)  # [1/h]
+        u = ((self.CD + self.CDR) / self.CL) * (beta / alpha) * (self.TWR**-1)
+        W_climb = np.exp((-C / self.a) * ((delta_h + (V_climb**2) / (2*self.g0)) / (1 - u)))
+        # wr_climb = 1.0065 - 0.0325 * M  # eq. 6.9 from Raymer
+        step_details = {"Mach number": M, "Theta": theta, "V_climb": V_climb, "Mission altitude": delta_h, "Alpha": alpha, "Beta": beta}
+        step = MissionStep("Climb", step_details)
+        self.add(step)
+        return W_climb
 
     # Equation 3.25, p. 64, Mattingly
-    def FUEL_WR_TURN(self):
-        """C = self.TSFC(M=self.M, theta=self.theta)  # [1/h]
-        W_turn = np.exp(-C * np.sqrt(self.theta) * ((self.CD + self.CDR) * self.n / self.CL) * (2*np.pi * self.N * self.V) / (self.g0 * np.sqrt(self.n**2 - 1)))
-        return W_turn"""
+    def TURN(self, M, theta, N, V_turn, TR):
+        C = self.TSFC(M=M, theta=theta)  # [1/h]
+        n = math.sqrt(1 + (V_turn ** 2 / self.g0 * TR) ** 2)
+        W_turn = np.exp(-C * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
+        step_details = {"Mach number": M, "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR}
+        step = MissionStep("Turn", step_details)
+        self.add(step)
+        return W_turn
 
     # Equation 3.23, p.63, Mattingly
-    def FUEL_WR_CRUISE(self):
-        """C = 1.684  # [1/h]
+    """def FUEL_WR_CRUISE(self):
+        C = 1.684  # [1/h]
         W_cruise = np.exp(- (C / (self.a * np.sqrt(self.theta)) * ((self.CD + self.CDR) / self.CL) * self.delta_s))
-        return W_cruise"""
-        pass
+        return W_cruise
+        pass"""
 
     # Brequet Range equation, Raymer
-    def FUEL_WR_CRUISE(self):
-        C = self.TSFC(M=self.M, theta=self.theta)
-        V = 280.5
+    def CRUISE(self, M, theta, R, V_cruise):
+        C = self.TSFC(M=M, theta=theta)
+        q = 0.5 * self.rho * V_cruise ** 2
         # L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
-        L_D_ratio = 1 / (((self.q * self.CD0) / (self.res[1]**-1)) + (self.res[1] + (1 / (self.q * np.pi + self.S * self.e))))
-        W_cruise = np.exp(- (self.R*C) / (self.V*L_D_ratio))
+        L_D_ratio = 1 / (((q * self.CD0) / (self.WSR**-1)) + (self.WSR + (1 / (q * np.pi + self.S * self.e))))
+        W_cruise = np.exp(- (R*C) / (V_cruise*L_D_ratio))
+        step_details = {"Mach number": M, "Theta": theta, "Range": R, "V_cruise": V_cruise}
+        step = MissionStep("Cruise", step_details)
+        self.add(step)
         return W_cruise
 
-    # Equation 3.21, 3.22, p. 63, Mattingly
-    def FUEL_WR_TAKEOFF(self):
-        """theta = 1.000
-        C = self.TSFC(M=0.05, theta=theta) # [1/h]
-        xi = self.CD + self.CDR - self.mu * self.CL
-        u = (xi * (self.q * self.beta) * ((self.res[1])**-1) + self.mu) * (self.beta / self.alpha) * self.res[0]
-        W_takeoff = np.exp(-C * np.sqrt(theta) / self.g0 * (self.V_takeoff / (1 - u)))
-        return W_takeoff"""
-        # Historical value, from Raymer eq. 6.8
-        return 0.98
+    def LANDING(self):  # use fixed ratio
+        step_details = {None}
+        step = MissionStep("Landing", step_details)
+        self.add(step)
+        return None
+
+    def analyze(self):
+        for step in self.mission_steps:
+            print(f"Analyzing step - Type: {step.step_type}, Details: {step.details}")
 
     def TOTAL_FUEL_WR(self):
-        w_x = self.FUEL_WR_CLIMB() * self.FUEL_WR_CRUISE() * self.FUEL_WR_TAKEOFF()
-        print('Climb: ' + str(self.FUEL_WR_CLIMB()))
-        print('Turn: ' + str(self.FUEL_WR_TURN()))
-        print('Cruise: ' + str(self.FUEL_WR_CRUISE()))
-        print('Takeoff: ' + str(self.FUEL_WR_TAKEOFF()))
+        w_x = self.CLIMB() * self.CRUISE() * self.TAKEOFF()
+        print('Climb: ' + str(self.CLIMB()))
+        print('Turn: ' + str(self.TURN()))
+        print('Cruise: ' + str(self.CRUISE()))
+        print('Takeoff: ' + str(self.TAKEOFF()))
         print('W_x: ' + str(w_x))
         W_fuel = 1.06 * (1 - w_x)
         print('W_fuel: ' + str(W_fuel))
