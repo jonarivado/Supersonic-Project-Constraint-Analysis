@@ -53,8 +53,7 @@ print(newCA.load_factor())
 
 
 mission = MissionAnalysis(WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e)
-mission.add(MissionStep("Takeoff", {"Mach number": 0.5, "Theta": 0.909, "Velocity": 250, "Alpha": 1.0, "Beta": 0.9895}))
-mission.add(MissionStep("Climb", {"Mach number": 0.6, "Theta": 0.8, "V_climb": 125, "Mission altitude": 400, "Alpha": 1.0, "Beta": 1.0}))
-mission.add(MissionStep("Turn", {"Mach number": 0.7, "Theta": 0.7, "Number of turns": 25, "V_turn": 120, "Turn radius": 250}))
-mission.add(MissionStep("Cruise", {"Mach number": 0.85, "Theta": 0.6, "Range": 600, "V_cruise": 250}))
-mission.analyze()
+mission.TAKEOFF(M=0.4, theta=0.9, V_takeoff=50, alpha=1.0, beta=1.0)
+mission.CLIMB(M=0.6, theta=0.8, V_climb=125, delta_h=400, alpha=1.0, beta=1.0)
+mission.TURN(M=0.7, theta=0.7, N=25, V_turn=120, TR=250)
+mission.CRUISE(M=0.85, theta=0.6, R=600, V_cruise=250)
