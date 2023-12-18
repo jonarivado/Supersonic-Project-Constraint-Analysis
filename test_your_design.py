@@ -25,13 +25,13 @@ CDR = 0 # Additional drag factors?
 g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
 q = 0.5 * rho * V ** 2  # dynamic pressure in N/m^2
 ROC = 200  # rate of climb in m/s
-TR = 250  # turn radius in m
+TR = 0.250  # turn radius in km
 n = math.sqrt(1 + (V ** 2 / (g0 * TR)) ** 2)  # load factor
 dv_dt = 20  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
 delta_h = 400  # mission altitude in m
 N = 1  # number of turns, counted in video
 theta = 0.9863  # mission angle at mission altitude on standard day conditions
-R = 600  # mission range in m
+R = 100  # mission range in km
 
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
@@ -53,11 +53,23 @@ print(newCA.load_factor())
 
 
 mission = MissionAnalysis(WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e)
-# mission.TAKEOFF(M=0.4, theta=0.9, V_takeoff=50, alpha=1.0, beta=1.0)
-mission.CLIMB(M=0.1)
-# mission.TURN(M=0.7, theta=0.7, N=25, V_turn=120, TR=250)
-# mission.CRUISE(M=0.85, theta=0.6, R=600, V_cruise=250)
+mission.TAKEOFF()
+mission.CLIMB(M=0.3)
+mission.TURN(M=0.7, theta=0.7, N=25, V_turn=120, TR=0.250)
+mission.CRUISE(M=0.85, theta=0.6, R=100, V_cruise=250)
 mission.CLIMB(M=0.85)
 mission.ACCELERATE(M=0.8)
 mission.ACCELERATE(M=2.0)
+mission.LANDING()
 mission.analyze()
+result = mission.create_dataframe()
+selected_columns = result[['Mach number', 'Weight ratio']]
+# print(selected_columns.columns)
+selected_columns_indexed = selected_columns.reset_index()
+print("-" * 60)
+# print(selected_columns_indexed.columns)
+selected_columns_indexed.rename(columns={'index': 'Missionstep'}, inplace=True)
+# selected_columns_indexed.index.name = 'Step'
+print(selected_columns_indexed)
+print("-" * 60)
+
