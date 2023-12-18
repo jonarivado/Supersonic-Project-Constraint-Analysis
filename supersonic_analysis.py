@@ -105,6 +105,13 @@ class MissionStep:
         self.step_type = step_type
         self.details = details
 
+    def display_details(self):
+        print(f"Mission part type: {self.step_type}")
+        print("Details:")
+        for key, value in self.details.items():
+            print(f"{key}: {value}")
+        print()
+
 class MissionAnalysis:
     def __init__(self, WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e):
         self.mission_steps = []
@@ -143,29 +150,52 @@ class MissionAnalysis:
             step_details = {"Mach number": M, "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta}
             step = MissionStep("Takeoff", step_details)
             self.mission_steps.append(step)
-            self.analyze("Takeoff")
         else:
-            ValueError("Error: Please provide corresponding values.")
+            raise ValueError("Error: Please provide corresponding values.")
         return W_takeoff
 
     # Equation 3.20, p 62, Mattingly
-    def CLIMB(self, M=None, theta=None, V_climb=None, delta_h=None, alpha=None, beta=None):
+    def CLIMB(self, M=None):
         W_climb = None
-        arguments = [M, theta, V_climb, delta_h, alpha, beta]
+        arguments = [M]  # theta, V_climb, delta_h, alpha, beta
         if all(i is not None for i in arguments):
-            theta = 0.9931
+            """theta = 0.9931
             C = self.TSFC(M=M, theta=theta)  # [1/h]
             u = ((self.CD + self.CDR) / self.CL) * (beta / alpha) * (self.TWR**-1)
             W_climb = np.exp((-C / self.a) * ((delta_h + (V_climb**2) / (2*self.g0)) / (1 - u)))
-            print("W_climb: " + str(W_climb))
-            # wr_climb = 1.0065 - 0.0325 * M  # eq. 6.9 from Raymer
-            step_details = {"Mach number": M, "Theta": theta, "V_climb": V_climb, "Mission altitude": delta_h, "Alpha": alpha, "Beta": beta}
-            step = MissionStep("Climb", step_details)
-            self.mission_steps.append(step)
-            self.analyze("Cruise")
+            print("W_climb: " + str(W_climb))"""
+            if M > 0.2:
+                W_climb = 1.0065 - 0.0325 * M  # eq. 6.9 from Raymer
+                print("W_climb: " + str(W_climb))
+                step_details = {"Mach number": M, "Weight ratio": W_climb}  # "Theta": theta, "V_climb": V_climb, "Mission altitude": delta_h, "Alpha": alpha, "Beta": beta
+                step = MissionStep("Climb", step_details)
+                self.mission_steps.append(step)
+            else:
+                raise ValueError("Error: Please provide larger Mach number")
         else:
-            ValueError("Error: Please provide corresponding values.")
+            raise ValueError("Error: Please provide corresponding values.")
         return W_climb
+
+    def ACCELERATE(self, M=None):
+        W_accelerate = None
+        arguments = [M]
+        if all(i is not None for i in arguments):
+            if M >= 1.0:  # supersonic
+                W_accelerate = 0.991 - 0.007 * M - 0.01 * M**2
+                print("W_accelerate (supersonic): " + str(W_accelerate))
+                step_details = {"Mach number": M, "Weight ratio": W_accelerate}
+                step = MissionStep("Accelerate at supersonic", step_details)
+                self.mission_steps.append(step)
+            else:  # subsonic
+                W_accelerate = 1.0065 - 0.0325 * M
+                print("W_accelerate (subsonic): " + str(W_accelerate))
+                step_details = {"Mach number": M, "Weight ratio": W_accelerate}
+                step = MissionStep("Accelerate at subsonic", step_details)
+                self.mission_steps.append(step)
+        else:
+            raise ValueError("Error: Please provide corresponding values.")
+        return W_accelerate
+
 
     # Equation 3.25, p. 64, Mattingly
     def TURN(self, M=None, theta=None, N=None, V_turn=None, TR=None):
@@ -179,9 +209,8 @@ class MissionAnalysis:
             step_details = {"Mach number": M, "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR}
             step = MissionStep("Turn", step_details)
             self.mission_steps.append(step)
-            self.analyze("Turn")
         else:
-            ValueError("Error: Please provide corresponding values.")
+            raise ValueError("Error: Please provide corresponding values.")
         return W_turn
 
     # Equation 3.23, p.63, Mattingly
@@ -205,9 +234,8 @@ class MissionAnalysis:
             step_details = {"Mach number": M, "Theta": theta, "Range": R, "V_cruise": V_cruise}
             step = MissionStep("Cruise", step_details)
             self.mission_steps.append(step)
-            self.analyze("Cruise")
         else:
-            ValueError("Error: Please provide corresponding values.")
+            raise ValueError("Error: Please provide corresponding values.")
         return W_cruise
 
     def LANDING(self):  # use fixed ratio
@@ -216,8 +244,9 @@ class MissionAnalysis:
         self.add(step)
         return None
 
-    def analyze(self, step_type):
-        print(f"Analyzing step - Type: {step_type}")
+    def analyze(self):
+        for step in self.mission_steps:
+            step.display_details()
 
 
     def TOTAL_FUEL_WR(self):
