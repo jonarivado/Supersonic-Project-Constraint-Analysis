@@ -132,26 +132,37 @@ class MissionAnalysis:
     def add(self, step):
         self.mission_steps.append(step)
 
+    def create_dataframe(self):
+        data = {}
+        for step in self.mission_steps:
+            data[step.step_type] = step.details
+
+        df = pd.DataFrame(data)
+        pd.set_option('display.max_columns', None)  # Show all columns
+        pd.set_option('display.max_rows', None)  # Show all rows
+        return df.transpose()
+
     # Turbojet engine max power, eq. 3.55b, p. 71, Mattingly
     def TSFC(self, M, theta):
         return (1.5 + 0.23 * M) * np.sqrt(theta)
 
     # Equation 3.21, 3.22, p. 63, Mattingly
-    def TAKEOFF(self, M=None, theta=None, V_takeoff=None, alpha=None, beta=None):
-        W_takeoff = None
-        arguments = [M, theta, V_takeoff, alpha, beta]
-        if all(i is not None for i in arguments):
+    def TAKEOFF(self):  # M=None, theta=None, V_takeoff=None, alpha=None, beta=None
+        W_takeoff = 0.97  # in range 0.97 - 0.99
+        step_details = {
+            "Weight ratio": W_takeoff}  # "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta
+        step = MissionStep("Takeoff", step_details)
+        self.mission_steps.append(step)
+        # arguments = [M, theta, V_takeoff, alpha, beta]
+        """if all(i is not None for i in arguments):
             C = self.TSFC(M=M, theta=theta) # [1/h]
             q = 0.5 * self.rho * V_takeoff**2
             xi = self.CD + self.CDR - self.mu * self.CL
             u = (xi * (q * beta) * ((self.WSR)**-1) + self.mu) * (beta / alpha) * self.TWR
             W_takeoff = np.exp(-C * np.sqrt(theta) / self.g0 * (V_takeoff / (1 - u)))
-            print("W_takeoff: " + str(W_takeoff))
-            step_details = {"Mach number": M, "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta}
-            step = MissionStep("Takeoff", step_details)
-            self.mission_steps.append(step)
-        else:
-            raise ValueError("Error: Please provide corresponding values.")
+            print("W_takeoff: " + str(W_takeoff))"""
+        # else:
+            # raise ValueError("Error: Please provide corresponding values.")
         return W_takeoff
 
     # Equation 3.20, p 62, Mattingly
@@ -197,16 +208,16 @@ class MissionAnalysis:
         return W_accelerate
 
 
-    # Equation 3.25, p. 64, Mattingly
+    # Equation 3.25, p. 64, Mattingly  CONVERT TO IMPERIAL UNITS!!!
     def TURN(self, M=None, theta=None, N=None, V_turn=None, TR=None):
         W_turn = None
         arguments = [M, theta, N, V_turn, TR]
         if all(i is not None for i in arguments):
             C = self.TSFC(M=M, theta=theta)  # [1/h]
-            n = math.sqrt(1 + (V_turn ** 2 / self.g0 * TR) ** 2)
-            W_turn = np.exp(-C * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
+            n = math.sqrt(1 + ((V_turn * 3.281) ** 2 / (self.g0 * 3.281) * TR * 0.54 * 6076) ** 2)
+            W_turn = np.exp(-(C / 3600) * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
             print("W_turn: " + str(W_turn))
-            step_details = {"Mach number": M, "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR}
+            step_details = {"Mach number": M, "Weight ratio": W_turn, "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR}
             step = MissionStep("Turn", step_details)
             self.mission_steps.append(step)
         else:
@@ -220,7 +231,7 @@ class MissionAnalysis:
         return W_cruise
         pass"""
 
-    # Brequet Range equation, Raymer
+    # Brequet Range equation, Raymer  CONVERT TO IMPERIAL UNITS!!!
     def CRUISE(self, M=None, theta=None, R=None, V_cruise=None):
         W_cruise = None
         arguments = [M, theta, R, V_cruise]
@@ -228,10 +239,10 @@ class MissionAnalysis:
             C = self.TSFC(M=M, theta=theta)
             q = 0.5 * self.rho * V_cruise ** 2
             # L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
-            L_D_ratio = 1 / (((q * self.CD0) / (self.WSR**-1)) + (self.WSR + (1 / (q * np.pi + self.S * self.e))))
-            W_cruise = np.exp(- (R*C) / (V_cruise*L_D_ratio))
+            L_D_ratio = 1 / (((q * 0.02089 * self.CD0) / self.WSR) + (self.WSR * (1 / ((q * 0.02089) * np.pi + (self.S * 10.753) * self.e))))
+            W_cruise = np.exp(- ((R * 0.54 * 6076) * (C / 3600)) / ((V_cruise * 3.281) * L_D_ratio))
             print("W_cruise: " + str(W_cruise))
-            step_details = {"Mach number": M, "Theta": theta, "Range": R, "V_cruise": V_cruise}
+            step_details = {"Mach number": M, "Weight ratio": W_cruise, "Theta": theta, "Range": R, "V_cruise": V_cruise}
             step = MissionStep("Cruise", step_details)
             self.mission_steps.append(step)
         else:
@@ -239,12 +250,14 @@ class MissionAnalysis:
         return W_cruise
 
     def LANDING(self):  # use fixed ratio
-        step_details = {None}
+        W_landing = 0.993  # range 0.992 - 0.997
+        step_details = {"Weight ratio": W_landing}
         step = MissionStep("Landing", step_details)
         self.add(step)
-        return None
+        return W_landing
 
     def analyze(self):
+        print("")
         for step in self.mission_steps:
             step.display_details()
 
