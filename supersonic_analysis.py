@@ -6,14 +6,14 @@ import pandas as pd
 import scipy.optimize as opt
 
 class ConstraintAnalysis:
-    def __init__(self, W, WP, S, b, AR, e, V, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, q, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2):
+    def __init__(self, W, WP, S, b, AR, e, V_cruise, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2):
         self.W = W
         self.WP = WP
         self.S = S
         self.b = b
         self.AR = AR
         self.e = e
-        self.V = V
+        self.V_cruise = V_cruise
         self.V_stall = V_stall
         self.V_takeoff = V_takeoff
         self.rho = rho
@@ -25,7 +25,6 @@ class ConstraintAnalysis:
         self.CD = CD
         self.CDR = CDR
         self.g0 = g0
-        self.q = q
         self.ROC = ROC
         self.TR = TR
         self.n = n
@@ -39,17 +38,21 @@ class ConstraintAnalysis:
         self.plot_max_y = plot_max_y
 
     def TSL_WTO_CRUISE(self, WTO_S):
-        return (self.beta / self.alpha) * (self.k * (self.beta / self.q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / self.q) * WTO_S))
+        q = 0.5 * self.rho * (self.V_cruise ** 2)
+        return (self.beta / self.alpha) * (self.k * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S))
 
     def TSL_WTO_CLIMB(self, WTO_S):
-        return (self.beta / self.alpha) * (self.k * (self.beta / self.q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / self.q) * WTO_S) + (1 / self.V) * self.ROC)
+        q = 0.5 * self.rho * (self.V_cruise ** 2)  # climbing velocity the same as cruising velocity TODO ???
+        return (self.beta / self.alpha) * (self.k * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S) + (1 / self.V_cruise) * self.ROC)
 
     def TSL_WTO_TO(self, WTO_S):
-        return (self.beta / self.alpha) * ((self.CD + self.CDR - self.mu * self.CL) * (self.beta / self.q) * (WTO_S ** -1) + self.mu + (1 / self.g0) * self.dv_dt)
+        q = 0.5 * self.rho * (self.V_takeoff ** 2)
+        return (self.beta / self.alpha) * ((self.CD + self.CDR - self.mu * self.CL) * (self.beta / q) * (WTO_S ** -1) + self.mu + (1 / self.g0) * self.dv_dt)
 
     def TSL_WTO_TURN(self, WTO_S):
+        q = 0.5 * self.rho * (self.V_cruise ** 2)  # turn at cruise speed TODO ???
         return (self.beta / self.alpha) * (
-                    self.k * (self.n ** 2) * (self.beta / self.q) * WTO_S + self.k2 * self.n + ((self.CD0 + self.CDR) * self.q) / (self.beta * WTO_S))
+                    self.k * (self.n ** 2) * (self.beta / q) * WTO_S + self.k2 * self.n + ((self.CD0 + self.CDR) * q) / (self.beta * WTO_S))
     
     def TSL_WTO_STALL(self):
         return 0.5 * self.rho * self.V_stall ** 2 * self.CL
@@ -98,7 +101,7 @@ class ConstraintAnalysis:
         plt.show()
 
     def load_factor(self):
-        return round(math.sqrt(1 + (self.V ** 2 / (self.g0 * self.TR)) ** 2),3)
+        return round(math.sqrt(1 + (self.V_cruise ** 2 / (self.g0 * self.TR)) ** 2),3)
 
 class MissionStep:
     def __init__(self, step_type, details):
@@ -128,6 +131,7 @@ class MissionAnalysis:
         self.a = a
         self.S = S
         self.e = e
+        self.total_WR = 1.0
 
     def add(self, step):
         self.mission_steps.append(step)
@@ -149,8 +153,9 @@ class MissionAnalysis:
     # Equation 3.21, 3.22, p. 63, Mattingly
     def TAKEOFF(self):  # M=None, theta=None, V_takeoff=None, alpha=None, beta=None
         W_takeoff = 0.97  # in range 0.97 - 0.99
+        self.total_WR = self.total_WR * W_takeoff
         step_details = {
-            "Weight ratio": W_takeoff}  # "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta
+            "Weight ratio": W_takeoff, "Total weight ratio": self.total_WR}  # "Theta": theta, "V_takeoff": V_takeoff, "Alpha": alpha, "Beta": beta
         step = MissionStep("Takeoff", step_details)
         self.mission_steps.append(step)
         # arguments = [M, theta, V_takeoff, alpha, beta]
@@ -177,8 +182,9 @@ class MissionAnalysis:
             print("W_climb: " + str(W_climb))"""
             if M > 0.2:
                 W_climb = 1.0065 - 0.0325 * M  # eq. 6.9 from Raymer
+                self.total_WR = self.total_WR * W_climb
                 print("W_climb: " + str(W_climb))
-                step_details = {"Mach number": M, "Weight ratio": W_climb}  # "Theta": theta, "V_climb": V_climb, "Mission altitude": delta_h, "Alpha": alpha, "Beta": beta
+                step_details = {"Mach number": M, "Weight ratio": W_climb, "Total weight ratio": self.total_WR}  # "Theta": theta, "V_climb": V_climb, "Mission altitude": delta_h, "Alpha": alpha, "Beta": beta
                 step = MissionStep("Climb", step_details)
                 self.mission_steps.append(step)
             else:
@@ -193,14 +199,16 @@ class MissionAnalysis:
         if all(i is not None for i in arguments):
             if M >= 1.0:  # supersonic
                 W_accelerate = 0.991 - 0.007 * M - 0.01 * M**2
+                self.total_WR = self.total_WR * W_accelerate
                 print("W_accelerate (supersonic): " + str(W_accelerate))
-                step_details = {"Mach number": M, "Weight ratio": W_accelerate}
+                step_details = {"Mach number": M, "Weight ratio": W_accelerate, "Total weight ratio": self.total_WR}
                 step = MissionStep("Accelerate at supersonic", step_details)
                 self.mission_steps.append(step)
             else:  # subsonic
                 W_accelerate = 1.0065 - 0.0325 * M
+                self.total_WR = self.total_WR * W_accelerate
                 print("W_accelerate (subsonic): " + str(W_accelerate))
-                step_details = {"Mach number": M, "Weight ratio": W_accelerate}
+                step_details = {"Mach number": M, "Weight ratio": W_accelerate, "Total weight ratio": self.total_WR}
                 step = MissionStep("Accelerate at subsonic", step_details)
                 self.mission_steps.append(step)
         else:
@@ -216,8 +224,9 @@ class MissionAnalysis:
             C = self.TSFC(M=M, theta=theta)  # [1/h]
             n = math.sqrt(1 + ((V_turn * 3.281) ** 2 / (self.g0 * 3.281) * TR * 0.54 * 6076) ** 2)
             W_turn = np.exp(-(C / 3600) * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
+            self.total_WR = self.total_WR * W_turn
             print("W_turn: " + str(W_turn))
-            step_details = {"Mach number": M, "Weight ratio": W_turn, "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR}
+            step_details = {"Mach number": M, "Weight ratio": W_turn, "Total weight ratio": self.total_WR}  # "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR
             step = MissionStep("Turn", step_details)
             self.mission_steps.append(step)
         else:
@@ -239,10 +248,11 @@ class MissionAnalysis:
             C = self.TSFC(M=M, theta=theta)
             q = 0.5 * self.rho * V_cruise ** 2
             # L_D_ratio = 4*(self.M+3)/self.M  # at supersonic 4(M+3)/M
-            L_D_ratio = 1 / (((q * 0.02089 * self.CD0) / self.WSR) + (self.WSR * (1 / ((q * 0.02089) * np.pi + (self.S * 10.753) * self.e))))
+            L_D_ratio = 1 / (((q * 0.02089 * self.CD0) / self.WSR) + (self.WSR * (1 / ((q * 0.02089) * np.pi * (self.S * 10.753) * self.e))))
             W_cruise = np.exp(- ((R * 0.54 * 6076) * (C / 3600)) / ((V_cruise * 3.281) * L_D_ratio))
+            self.total_WR = self.total_WR * W_cruise
             print("W_cruise: " + str(W_cruise))
-            step_details = {"Mach number": M, "Weight ratio": W_cruise, "Theta": theta, "Range": R, "V_cruise": V_cruise}
+            step_details = {"Mach number": M, "Weight ratio": W_cruise, "Total weight ratio": self.total_WR}  # "Theta": theta, "Range": R, "V_cruise": V_cruise
             step = MissionStep("Cruise", step_details)
             self.mission_steps.append(step)
         else:
@@ -251,9 +261,10 @@ class MissionAnalysis:
 
     def LANDING(self):  # use fixed ratio
         W_landing = 0.993  # range 0.992 - 0.997
-        step_details = {"Weight ratio": W_landing}
+        self.total_WR = self.total_WR * W_landing
+        step_details = {"Weight ratio": W_landing, "Total weight ratio": self.total_WR}
         step = MissionStep("Landing", step_details)
-        self.add(step)
+        self.mission_steps.append(step)
         return W_landing
 
     def analyze(self):
@@ -263,19 +274,13 @@ class MissionAnalysis:
 
 
     def TOTAL_FUEL_WR(self):
-        w_x = self.CLIMB() * self.CRUISE() * self.TAKEOFF()
-        print('Climb: ' + str(self.CLIMB()))
-        print('Turn: ' + str(self.TURN()))
-        print('Cruise: ' + str(self.CRUISE()))
-        print('Takeoff: ' + str(self.TAKEOFF()))
-        print('W_x: ' + str(w_x))
-        W_fuel = 1.06 * (1 - w_x)
-        print('W_fuel: ' + str(W_fuel))
+        W_fuel = 1.06 * (1 - self.total_WR)
+        # print('W_fuel: ' + str(W_fuel))
         return W_fuel
 
     # definition of empty weight ratio for UAV small
     def calculate_ewf(self, w_guess):
-        ewf = 0.97 * w_guess ** -0.06
+        ewf = (0.97 * w_guess) ** -0.06 * w_guess
         return ewf
 
     def TOTAL_WR(self, initial_w_guess, w_fuel):
