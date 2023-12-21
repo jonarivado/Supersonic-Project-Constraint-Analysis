@@ -283,18 +283,21 @@ class MissionAnalysis:
         ewf = (0.93 * (w_guess ** -0.06)) * 0.95
         # ewf = 1.495 * (w_guess ** -0.1)
         ew = ewf * w_guess
-        print("Empty weight: " + str(ew))
+        # print("Empty weight ratio: " + str(ewf))
+        # print("Empty weight: " + str(ew))
         return ewf
 
     def TOTAL_WR(self, initial_w_guess, w_fuel):
         w_guess = initial_w_guess
         count = 1
+        final_ewf = None
+        final_fuel_weight = None
         while True:
-            print(" ")
-            print("Iteration " + str(count))
+            # print(" ")
+            # print("Iteration " + str(count))
             ewf = self.calculate_ewf(w_guess=w_guess)
-            wf = w_fuel * w_guess
-            print("Fuel weight: " + str(wf))
+            final_ewf = ewf
+            # print("Fuel weight: " + str(final_fuel_weight))
 
             WTO_calc = self.WP / (1 - w_fuel - ewf)
 
@@ -303,23 +306,30 @@ class MissionAnalysis:
 
             w_guess = WTO_calc
             count += 1
-            print("Current takeoff weight: " + str(w_guess))
-            print(" ")
-
-        return w_guess
+            # print("Current takeoff weight: " + str(w_guess))
+            # print(" ")
+        final_fuel_weight = w_fuel * w_guess
+        final_ew = final_ewf * w_guess
+        return w_guess, final_ewf, final_ew, count, final_fuel_weight
 
     """def WTO(self):  # TODO determine payload weight WP
         return self.WP / (1 - self.TOTAL_FUEL_WR() - self.TOTAL_EMPTY_WR(W_guess))"""
 
-    def THRUST(self, WTO):
-        thrust = self.res[0] * WTO
+    def THRUST(self, TWR, WTO):
+        thrust = TWR * WTO
         print('Required thrust: ' + str(thrust))
         return thrust
 
-    def WING_AREA(self, WTO):
-        wing_area = self.res[1] / WTO
+    def WING_AREA(self, WSR, WTO):
+        wing_area = WSR / WTO
         print('Required wing area: ' + str(wing_area))
         return wing_area
+
+    def convert_lb_to_kg(self, input):
+        # 1 lb = 0.45359237 kg
+        return input * 0.45359237
+
+
 
 
 class DragPolar:
