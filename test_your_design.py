@@ -4,7 +4,7 @@ import math
 
 # Aircraft variables & estimates in SI units
 W = 10  # weight in kg
-WP = 1000  # payload weight in ???
+WP = 10  # payload weight in lb
 S = 0.463318  # wing area in m^2
 b = 0.91  # wing span in m
 AR = 1.78733  # aspect ratio
@@ -74,7 +74,9 @@ selected_columns_indexed.rename(columns={'index': 'Missionstep'}, inplace=True)
 print(selected_columns_indexed)
 print("-" * 80)
 fuel_ratio = mission.TOTAL_FUEL_WR()
-print(fuel_ratio)
+print("Fuel ratio: " + str(fuel_ratio))
 ewf = mission.calculate_ewf(w_guess=55)
-print(ewf)
+print("Empty weight ratio: " + str(ewf))
+takeoff_weight = mission.TOTAL_WR(initial_w_guess=55, w_fuel=fuel_ratio)
+print("Final takeoff weight: " + str(takeoff_weight))
 
