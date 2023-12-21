@@ -280,20 +280,31 @@ class MissionAnalysis:
 
     # definition of empty weight ratio for UAV small
     def calculate_ewf(self, w_guess):
-        ewf = (0.97 * w_guess) ** -0.06 * w_guess
+        ewf = (0.93 * (w_guess ** -0.06)) * 0.95
+        # ewf = 1.495 * (w_guess ** -0.1)
+        ew = ewf * w_guess
+        print("Empty weight: " + str(ew))
         return ewf
 
     def TOTAL_WR(self, initial_w_guess, w_fuel):
         w_guess = initial_w_guess
+        count = 1
         while True:
+            print(" ")
+            print("Iteration " + str(count))
             ewf = self.calculate_ewf(w_guess=w_guess)
+            wf = w_fuel * w_guess
+            print("Fuel weight: " + str(wf))
+
             WTO_calc = self.WP / (1 - w_fuel - ewf)
 
             if abs(WTO_calc - w_guess) < 0.001:
                 break
 
             w_guess = WTO_calc
-            print(w_guess)
+            count += 1
+            print("Current takeoff weight: " + str(w_guess))
+            print(" ")
 
         return w_guess
 
