@@ -2,7 +2,8 @@ from supersonic_analysis import ConstraintAnalysis, DragPolar, MissionAnalysis, 
 import ambiance as amb
 import math
 
-# Aircraft variables & estimates in SI units
+####################################################################################################################
+# Aircraft variables & estimates in SI units, PART WHICH CAN BE CHANGED
 W = 10  # weight in kg
 WP = 10  # payload weight in lb
 S = 0.463318  # wing area in m^2
@@ -32,6 +33,7 @@ dv_dt = 20  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct im
 # N = 1  # number of turns, counted in video
 # theta = 0.9863  # mission angle at mission altitude on standard day conditions
 # R = 1000  # mission range in m
+####################################################################################################################
 
 alpha = 1  # thrust lapse factor
 beta = 1  # how much the weight of the aircraft is reduced by the fuel burn compared to MTOW
@@ -46,6 +48,7 @@ dragpolar = DragPolar(filename="testpolar.polar")
 DPcoeff = dragpolar.calculate_coeff()
 print(DPcoeff)
 
+# Constraint analysis to obtain optimal thrust-to-weight ratio and optimal wing loading
 newCA = ConstraintAnalysis(W, WP, S, b, AR, e, V_cruise, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, ROC, TR, n, dv_dt, alpha, beta, safety_margin_TW, safety_margin_WS, plot_max_x, plot_max_y)
 # Thrust-to-weight ratio, Wing area-to-weight ratio
 TWR, WSR = newCA.optimize()
@@ -53,6 +56,7 @@ print(newCA.load_factor())
 # newCA.plot()
 
 ####################################################################################################################
+# Mission steps definition, PART WHICH CAN BE CHANGED
 mission = MissionAnalysis(WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e)
 mission.TAKEOFF()
 mission.CLIMB(M=0.3)
@@ -63,6 +67,7 @@ mission.ACCELERATE(M=0.8)
 mission.ACCELERATE(M=2.0)
 mission.LANDING()
 ####################################################################################################################
+# Mission analysis, details collected for printing, DO NOT CHANGE THIS PART
 mission.analyze()
 result = mission.create_dataframe()
 selected_columns = result[['Mach number', 'Weight ratio', 'Total weight ratio']]

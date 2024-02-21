@@ -330,8 +330,6 @@ class MissionAnalysis:
         return input * 0.45359237
 
 
-
-
 class DragPolar:
     def __init__(self,filename):
         self.filename = filename
