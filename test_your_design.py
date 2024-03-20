@@ -2,33 +2,34 @@ from supersonic_analysis import ConstraintAnalysis, DragPolar, MissionAnalysis, 
 import ambiance as amb
 import math
 
+
 ####################################################################################################################
 # Aircraft variables & estimates in SI units, PART WHICH CAN BE CHANGED
-W = 10  # weight in kg
-WP = 10  # payload weight in lb
-S = 0.463318  # wing area in m^2
-b = 0.91  # wing span in m
-AR = 1.78733  # aspect ratio
-e = 0.8  # oswald efficiency factor
-M = 0.85  # Mach number
-a = 330  # speed of sound in m/s
-V_cruise = a*M  # cruise speed in m/s
-V_stall = 50/3.6  # stall speed in m/s
-V_takeoff = 1.2 * V_stall  # take-off speed in m/s
-rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
-mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
-k = 0.2129  # induced drag constant, k1
-k2 = 0.0053  # coefficient in lift-drag polar
-CD0 = 0.0059  # zero lift drag coefficient
-CL = 1.1  # lift coefficient CLMax (Land @ MLW)
-CD = CD0 + k * CL ** 2  # drag coefficient
+filename_dragpolar = "my modified design from anastase v2_DegenGeom_V6.polar" #the filename of the polar, in the form name.polar
+# S = 1.6235442959655093  # wing area in m^2
+S = 0.37 
+# b = 0.91  # wing span in m
+b = 0.32
+M = 0.1  # Mach number
+V_stall = 30/3.6  # stall speed in m/s 
+CL_max = 1.1  # lift coefficient CLMax (Land @ MLW)
 CDR = 0  # Additional drag factors?
-g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
-# q = 0.5 * rho * V_cruise ** 2  # dynamic pressure in N/m^2
-ROC = 200  # rate of climb in m/s
+ROC = 2  # rate of climb in m/s
 TR = 250  # turn radius in m
-n = math.sqrt(1 + (V_cruise ** 2 / (g0 * TR)) ** 2)  # load factor
-dv_dt = 20  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
+dv_dt = 5  # acceleration dv_dt = v_final - v_initial / delta_t TODO correct implementation / calculation
+e = 0.8  # oswald efficiency factor
+
+WP = 2  # payload weight in kg
+
+
+
+####################################################################################################################
+# W = 10  # weight in kg
+#AR = 1.78733  # aspect ratio
+# q = 0.5 * rho * V_cruise ** 2  # dynamic pressure in N/m^2
+# k1 = 0.2129  # induced drag constant, k1
+# k2 = 0.0053  # coefficient in lift-drag polar
+# CD0 = 0.0059  # zero lift drag coefficient
 # delta_h = 400  # mission altitude in m
 # N = 1  # number of turns, counted in video
 # theta = 0.9863  # mission angle at mission altitude on standard day conditions
@@ -44,20 +45,16 @@ safety_margin_WS = 10
 plot_max_x = 500
 plot_max_y = 4
 
-dragpolar = DragPolar(filename="testpolar.polar")
-DPcoeff = dragpolar.calculate_coeff()
-print(DPcoeff)
-
 # Constraint analysis to obtain optimal thrust-to-weight ratio and optimal wing loading
-newCA = ConstraintAnalysis(W, WP, S, b, AR, e, V_cruise, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, ROC, TR, n, dv_dt, alpha, beta, safety_margin_TW, safety_margin_WS, plot_max_x, plot_max_y)
+newCA = ConstraintAnalysis(S, M, V_stall, CL_max, ROC, TR, dv_dt, filename_dragpolar, alpha, beta, CDR, safety_margin_TW, safety_margin_WS, plot_max_x, plot_max_y)
 # Thrust-to-weight ratio, Wing area-to-weight ratio
 TWR, WSR = newCA.optimize()
 print(newCA.load_factor())
-# newCA.plot()
+newCA.plot()
 
 ####################################################################################################################
 # Mission steps definition, PART WHICH CAN BE CHANGED
-mission = MissionAnalysis(WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e)
+mission = MissionAnalysis(WP, CDR, CL_max, TWR, WSR,  S, e, filename_dragpolar)
 mission.TAKEOFF()
 mission.CLIMB(M=0.3)
 mission.TURN(M=0.7, theta=0.7, N=25, V_turn=120, TR=250)  # value for theta from Mattingly, depends on altitude
@@ -95,5 +92,3 @@ wing_area = mission.WING_AREA(WSR=WSR, WTO=mission.convert_lb_to_kg(input=takeof
 print("Thrust: " + str(thrust) + " N")
 print("Wing area: " + str(wing_area) + " m^2")
 print("-" * 80)
-
-

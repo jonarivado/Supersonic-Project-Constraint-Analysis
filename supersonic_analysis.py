@@ -6,56 +6,65 @@ import pandas as pd
 import scipy.optimize as opt
 
 class ConstraintAnalysis:
-    def __init__(self, W, WP, S, b, AR, e, V_cruise, V_stall, V_takeoff, rho, mu, k, k2, CD0, CL, CD, CDR, g0, ROC, TR, n, dv_dt, alpha, beta,safety_margin_TW=0,safety_margin_WS=0,plot_max_x=500,plot_max_y=2):
-        self.W = W
-        self.WP = WP
-        self.S = S
-        self.b = b
-        self.AR = AR
-        self.e = e
-        self.V_cruise = V_cruise
-        self.V_stall = V_stall
-        self.V_takeoff = V_takeoff
-        self.rho = rho
-        self.mu = mu
-        self.k = k
-        self.k2 = k2
-        self.CD0 = CD0
-        self.CL = CL
-        self.CD = CD
-        self.CDR = CDR
-        self.g0 = g0
+    def __init__(self, S, M, V_stall, CL_max, ROC, TR, dv_dt, filename_dragpolar, alpha=1, beta=1, CDR=0, safety_margin_TW=0, safety_margin_WS=0, plot_max_x=500, plot_max_y=2):
+
+        self.CL_max = CL_max
+        # Import drag polar and definition of aerodynamic coefficients
+        dragpolar = DragPolar(filename=filename_dragpolar)
+        DPcoeff = dragpolar.calculate_coeff()
+        self.k1 = DPcoeff['K1']  # induced drag constant, k1
+        self.k2 = DPcoeff['K2']  # coefficient in lift-drag polar
+        self.CD0 = DPcoeff['CD0']  # zero lift drag coefficient
+        self.CD = self.CD0 + self.k2 *self.CL_max + self.k1 * self.CL_max ** 2  # drag coefficient
+        # Import of atmospheric conditions
+        a = float(amb.Atmosphere(0).speed_of_sound) # speed of sound in m/s
+        self.g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2
+        self.rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
+        self.mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s  
+
+        self.S = S #Surface aera 
+        self.V_cruise = a*M  # cruise speed in m/s
+        self.V_stall = V_stall 
+        self.V_takeoff = 1.2 * V_stall  # take-off speed in m/s
+        self.CDR = CDR #
+
         self.ROC = ROC
         self.TR = TR
-        self.n = n
+        self.n = math.sqrt(1 + (self.V_cruise ** 2 / (self.g0 * TR)) ** 2)  # load factor
+        print("The Load factor for speed", self.V_cruise, " m/s at a radius: ", self.TR, "is: ", self.n, "g")
         self.dv_dt = dv_dt
-        self.alpha = alpha
-        self.beta = beta
+        self.alpha = alpha #
+        self.beta = beta #
         self.res = [0, 0]
         self.safety_margin_TW = safety_margin_TW
         self.safety_margin_WS = safety_margin_WS
         self.plot_max_x = plot_max_x
         self.plot_max_y = plot_max_y
+        # self.b = b
+        # self.AR = AR
+        # self.e = e
+        #self.W = W
+        #self.WP = WP
 
-    def TSL_WTO_CRUISE(self, WTO_S):
+    def TSL_WTO_CRUISE(self, WTO_S): #Mattingly 2.12
         q = 0.5 * self.rho * (self.V_cruise ** 2)
-        return (self.beta / self.alpha) * (self.k * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S))
+        return (self.beta / self.alpha) * (self.k1 * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S))
 
-    def TSL_WTO_CLIMB(self, WTO_S):
-        q = 0.5 * self.rho * (self.V_cruise ** 2)  # climbing velocity the same as cruising velocity TODO ???
-        return (self.beta / self.alpha) * (self.k * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S) + (1 / self.V_cruise) * self.ROC)
+    def TSL_WTO_CLIMB(self, WTO_S): #Mattingly 2.14
+        q = 0.5 * self.rho * (self.V_cruise ** 2) 
+        return (self.beta / self.alpha) * (self.k1 * (self.beta / q) * WTO_S + self.k2 + (self.CD0 + self.CDR) / ((self.beta / q) * WTO_S) + (1 / self.V_cruise) * self.ROC)
 
-    def TSL_WTO_TO(self, WTO_S):
+    def TSL_WTO_TO(self, WTO_S): #Takeoff; Mattingly 2.23
         q = 0.5 * self.rho * (self.V_takeoff ** 2)
-        return (self.beta / self.alpha) * ((self.CD + self.CDR - self.mu * self.CL) * (self.beta / q) * (WTO_S ** -1) + self.mu + (1 / self.g0) * self.dv_dt)
+        return (self.beta / self.alpha) * ((self.CD + self.CDR - self.mu * self.CL_max) * (self.beta / q) * (WTO_S ** -1) + self.mu + (1 / self.g0) * self.dv_dt)
 
-    def TSL_WTO_TURN(self, WTO_S):
+    def TSL_WTO_TURN(self, WTO_S): #Mattingly 2.15
         q = 0.5 * self.rho * (self.V_cruise ** 2)  # turn at cruise speed TODO ???
         return (self.beta / self.alpha) * (
-                    self.k * (self.n ** 2) * (self.beta / q) * WTO_S + self.k2 * self.n + ((self.CD0 + self.CDR) * q) / (self.beta * WTO_S))
+                    self.k1 * (self.n ** 2) * (self.beta / q) * WTO_S + self.k2 * self.n + ((self.CD0 + self.CDR) * q) / (self.beta * WTO_S))
     
     def TSL_WTO_STALL(self):
-        return 0.5 * self.rho * self.V_stall ** 2 * self.CL
+        return 0.5 * self.rho * self.V_stall ** 2 * self.CL_max
 
 
     def optimize(self):
@@ -116,22 +125,34 @@ class MissionStep:
         print()
 
 class MissionAnalysis:
-    def __init__(self, WP, CD, CDR, CD0, mu, CL, TWR, WSR, g0, rho, a, S, e):
+    def __init__(self, WP, CDR, CL_max, TWR, WSR, S, e, filename_dragpolar):
         self.mission_steps = []
-        self.WP = WP  # payload weight
-        self.CD = CD
+        self.CL_max = CL_max
+        # Import drag polar and definition of aerodynamic coefficients
+        dragpolar = DragPolar(filename=filename_dragpolar)
+        DPcoeff = dragpolar.calculate_coeff()
+        k1 = DPcoeff['K1']  # induced drag constant, k1
+        k2 = DPcoeff['K2']  # coefficient in lift-drag polar
+        self.CD0 = DPcoeff['CD0']  # zero lift drag coefficient
+        self.CD = self.CD0 + k2 *self.CL_max + k1 * self.CL_max ** 2  # drag coefficient
         self.CDR = CDR
-        self.CD0 = CD0
-        self.mu = mu
-        self.CL = CL
+
+        self.rho = float(amb.Atmosphere(0).density)  # air density in kg/m^3
+        self.mu = float(amb.Atmosphere(0).dynamic_viscosity)  # dynamic viscosity in kg/m/s
+        self.g0 = float(amb.Atmosphere(0).grav_accel)  # gravitational acceleration in m/s^2     
+
+
+        #Inputs from constraint analysis:
         self.TWR = TWR  # thrust to weight ratio
         self.WSR = WSR  # weight to wing area ratio
-        self.g0 = g0
-        self.rho = rho
-        self.a = a
-        self.S = S
-        self.e = e
-        self.total_WR = 1.0
+
+        # Inputs from User
+        self.WP = 2.20462*WP  # payload weight converted from kg to lb
+        self.S = S # Reference Aera of the wing
+        self.e = e # oswald factor
+        self.total_WR = 1.0 #the weight ratio is set to 1 at the beginning
+        
+        # self.a = a
 
     def add(self, step):
         self.mission_steps.append(step)
@@ -180,7 +201,7 @@ class MissionAnalysis:
             u = ((self.CD + self.CDR) / self.CL) * (beta / alpha) * (self.TWR**-1)
             W_climb = np.exp((-C / self.a) * ((delta_h + (V_climb**2) / (2*self.g0)) / (1 - u)))
             print("W_climb: " + str(W_climb))"""
-            if M > 0.2:
+            if M > 0.2: #else we are stalling 
                 W_climb = 1.0065 - 0.0325 * M  # eq. 6.9 from Raymer
                 self.total_WR = self.total_WR * W_climb
                 print("W_climb: " + str(W_climb))
@@ -223,7 +244,7 @@ class MissionAnalysis:
         if all(i is not None for i in arguments):
             C = self.TSFC(M=M, theta=theta)  # [1/h]
             n = math.sqrt(1 + ((V_turn * 3.281) ** 2 / (self.g0 * 3.281) * TR * 0.54 * 6076) ** 2)
-            W_turn = np.exp(-(C / 3600) * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
+            W_turn = np.exp(-(C / 3600) * np.sqrt(theta) * ((self.CD + self.CDR) * n / self.CL_max) * (2*np.pi * N * V_turn) / (self.g0 * np.sqrt(n**2 - 1)))
             self.total_WR = self.total_WR * W_turn
             print("W_turn: " + str(W_turn))
             step_details = {"Mach number": M, "Weight ratio": W_turn, "Total weight ratio": self.total_WR}  # "Theta": theta, "Number of turns": N, "V_turn": V_turn, "Turn radius": TR
@@ -280,7 +301,7 @@ class MissionAnalysis:
 
     # definition of empty weight ratio for UAV small
     def calculate_ewf(self, w_guess):
-        ewf = (0.93 * (w_guess ** -0.06)) * 0.95
+        ewf = (0.93 * (w_guess ** -0.06)) * 0.95 #emty weight ratio
         # ewf = 1.495 * (w_guess ** -0.1)
         ew = ewf * w_guess
         # print("Empty weight ratio: " + str(ewf))
@@ -288,16 +309,13 @@ class MissionAnalysis:
         return ewf
 
     def TOTAL_WR(self, initial_w_guess, w_fuel):
-        w_guess = initial_w_guess
+        w_guess = initial_w_guess #55
         count = 1
         final_ewf = None
         final_fuel_weight = None
         while True:
-            # print(" ")
-            # print("Iteration " + str(count))
             ewf = self.calculate_ewf(w_guess=w_guess)
             final_ewf = ewf
-            # print("Fuel weight: " + str(final_fuel_weight))
 
             WTO_calc = self.WP / (1 - w_fuel - ewf)
 
@@ -306,8 +324,7 @@ class MissionAnalysis:
 
             w_guess = WTO_calc
             count += 1
-            # print("Current takeoff weight: " + str(w_guess))
-            # print(" ")
+
         final_fuel_weight = w_fuel * w_guess
         final_ew = final_ewf * w_guess
         return w_guess, final_ewf, final_ew, count, final_fuel_weight
